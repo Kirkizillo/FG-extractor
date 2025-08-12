@@ -77,8 +77,7 @@ function extractWH(url) {
   return { w, h, ratio: h ? w / h : null };
 }
 function uniqueInOrder(arr) {
-  const seen = new Set();
-  const out = [];
+  const seen = new Set(); const out = [];
   for (const x of arr) if (!seen.has(x)) { seen.add(x); out.push(x); }
   return out;
 }
@@ -101,13 +100,31 @@ function decodeJSStringEscapes(str){
 
 // --- Source collectors ---------------------------------------------------
 function getScriptBodies(html){
-  const bodies=[]; const re=/<script[^>]*>([\s\S]*?)<\/script>/gi; let m; while((m=re.exec(html))!==null){ bodies.push(m[1]||''); }
+  const bodies=[]; const re=/<script[^>]*>([\\s\\S]*?)<\\/script>/gi; let m;
+  while((m=re.exec(html))!==null){ bodies.push(m[1]||''); }
   return bodies;
 }
 function extractUrlsFromBodies(bodies){
-  const urls=[]; const urlRe=/https:\/\/play-lh\.googleusercontent\.com\/[A-Za-z0-9_\-][^"'<>\s]*/g;
+  const urls=[]; const urlRe=/https:\\/\\/play-lh\\.googleusercontent\\.com\\/[A-Za-z0-9_\\-][^\"'<>\\s]*/g;
   for(const raw of bodies){ const dec = decodeJSStringEscapes(raw); const found = dec.match(urlRe) || []; urls.push(...found); }
   return uniqueInOrder(urls);
+}
+
+// --- Filters (NUEVO) ----------------------------------------------------
+function isAvatarOrJunk(u){
+  if (!u.includes(IMG_HOST)) return true;                 // only play-lh
+  if (u.includes('/a-/') || u.includes('/a/')) return true; // user avatars
+  if (/\\b=mo\\b/.test(u)) return true;                   // mini avatar suffix
+  if (!SIZE_RE.test(u)) return true;                      // must have =w###-h###
+  return false;
+}
+function passesSizeRange(u){
+  const m = u.match(SIZE_RE);
+  if (!m) return false;
+  const w = +m[1], h = +m[2];
+  if (w < 600 || w > 1400) return false;
+  if (h < 300 || h > 700) return false;
+  return true;
 }
 
 // --- Scoring -------------------------------------------------------------
@@ -117,12 +134,12 @@ function scoreUrl(u){
   const dev = Math.abs(s.ratio - 16/9);
   if (dev > 0.12) return -1e9;
   let sc = 0;
-  sc += dev <= 0.03 ? 8 : 4; // closeness to 16:9
-  if (FAV_HEIGHTS.has(s.h)) sc += 12;
+  sc += dev <= 0.03 ? 8 : 4;                     // closeness to 16:9
+  if (FAV_HEIGHTS.has(s.h)) sc += 12;            // banner-like heights
   const pair = `${s.w}x${s.h}`; if (SUPER_FAV.has(pair)) sc += 6;
-  if (u.includes('-rw')) sc += 3;
-  if ([1080, 720, 480].includes(s.h)) sc -= 8; // screenshots common
-  sc += s.h <= 600 ? 3 : -3;
+  if (u.includes('-rw')) sc += 3;                // typical delivery flag
+  if ([1080, 720, 480].includes(s.h)) sc -= 8;   // screenshot-ish
+  sc += s.h <= 600 ? 3 : -3;                     // avoid very tall
   return sc;
 }
 function pickBest(urls){ let best=null,bs=-1e9; for(const u of urls){ const s=scoreUrl(u); if(s>bs){ bs=s; best=u; } } return best; }
@@ -137,23 +154,49 @@ function extractFeatureGraphic(html){
   if (!urls.length){ urls = extractUrlsFromBodies(getScriptBodies(html)); }
 
   // 3) If still none, decode whole HTML and try once more
-  if (!urls.length){ const dec = decodeJSStringEscapes(html); const all = dec.match(/https:\/\/play-lh\.googleusercontent\.com\/[A-Za-z0-9_\-][^"'<>\s]*/g) || []; urls = uniqueInOrder(all); }
+  if (!urls.length){
+    const dec = decodeJSStringEscapes(html);
+    const all = dec.match(/https:\\/\\/play-lh\\.googleusercontent\\.com\\/[A-Za-z0-9_\\-][^\"'<>\\s]*/g) || [];
+    urls = uniqueInOrder(all);
+  }
 
-  // 4) Group by base (strip size tokens), pick best inside each group, then pick global best
+  // 🔴 NUEVO: eliminar avatares/lixo y forzar rango de tamaño banner
+  urls = urls.filter(u => !isAvatarOrJunk(u) && passesSizeRange(u));
+
+  // 4) Agrupar por base y elegir el mejor de cada grupo, luego el mejor global
   const groups = byBase(urls);
   let best=null, bestScore=-1e9;
-  for (const g of groups){ const candidate=pickBest(g.urls); if(!candidate) continue; const sc=scoreUrl(candidate); if(sc>bestScore){ best=candidate; bestScore=sc; } }
+  for (const g of groups){
+    const candidate=pickBest(g.urls);
+    if(!candidate) continue;
+    const sc=scoreUrl(candidate);
+    if(sc>bestScore){ best=candidate; bestScore=sc; }
+  }
 
   if (DEBUG){
-    console.log('[FGE] candidates', urls.slice(0,50));
+    console.log('[FGE] candidates (after filters)', urls.slice(0,50));
     console.log('[FGE] best', best);
   }
   return best;
 }
 
 // --- Proxy persistence ---------------------------------------------------
-function getProxy(){ const ls=localStorage.getItem(LS_KEY_PROXY); if(ls) return ls; const p=new URLSearchParams(location.search).get('proxy'); if(p){ localStorage.setItem(LS_KEY_PROXY,p); return p;} return null; }
-function setProxyInteractive(){ const cur=getProxy()||''; const val=prompt('Proxy endpoint (must end with ?url=):',cur); if(!val) return; try{ new URL(val); if(!val.endsWith('=') && !val.endsWith('%3D')) return alert('It should end with ?url='); localStorage.setItem(LS_KEY_PROXY,val);}catch{ alert('Invalid URL'); } }
+function getProxy(){
+  const ls=localStorage.getItem(LS_KEY_PROXY); if(ls) return ls;
+  const p=new URLSearchParams(location.search).get('proxy');
+  if(p){ localStorage.setItem(LS_KEY_PROXY,p); return p;}
+  return null;
+}
+function setProxyInteractive(){
+  const cur=getProxy()||'';
+  const val=prompt('Proxy endpoint (must end with ?url=):',cur);
+  if(!val) return;
+  try{
+    new URL(val);
+    if(!val.endsWith('=') && !val.endsWith('%3D')) return alert('It should end with ?url=');
+    localStorage.setItem(LS_KEY_PROXY,val);
+  }catch{ alert('Invalid URL'); }
+}
 
 // --- UI wiring -----------------------------------------------------------
 const elInput = document.getElementById('input');
@@ -167,19 +210,35 @@ const elPrev = document.getElementById('preview');
 const elMeta = document.getElementById('meta');
 const elOpen = document.getElementById('openRaw');
 const elProxyBtn = document.getElementById('proxyBtn');
-function setStatus(msg, kind='info'){ const colors={info:'text-slate-400', ok:'text-emerald-400', err:'text-rose-400'}; elStatus.className=`mt-4 text-sm ${colors[kind]||colors.info}`; elStatus.textContent=msg||''; }
+function setStatus(msg, kind='info'){
+  const colors={info:'text-slate-400', ok:'text-emerald-400', err:'text-rose-400'};
+  elStatus.className=`mt-4 text-sm ${colors[kind]||colors.info}`;
+  elStatus.textContent=msg||'';
+}
 
 async function extract(){
   elRes.classList.add('hidden'); setStatus('');
-  const pkg = (function getPkg(v){ const t=v.trim(); if(!t) return null; try{ const u=new URL(t); if(u.hostname.includes('play.google.com')) return new URLSearchParams(u.search).get('id'); return null; }catch{ return t; } })(elInput.value);
+  const pkg = (function getPkg(v){
+    const t=v.trim(); if(!t) return null;
+    try{ const u=new URL(t); if(u.hostname.includes('play.google.com')) return new URLSearchParams(u.search).get('id'); return null; }
+    catch{ return t; }
+  })(elInput.value);
   if (!pkg) return setStatus('Enter a Play URL or a valid package ID.','err');
   const proxy = getProxy(); if (!proxy) return setStatus('Set proxy (gear button) first.','err');
   const playUrl = `https://play.google.com/store/apps/details?` + new URLSearchParams({id:pkg, hl:'en', gl:'US'}).toString();
   const target = proxy.endsWith('=') ? proxy + encodeURIComponent(playUrl) : proxy + playUrl;
 
   setStatus('Fetching page via proxy…'); let html='';
-  try{ const r=await fetch(target); if(!r.ok) throw new Error(`Proxy HTTP ${r.status}`); html=await r.text(); }
-  catch(e){ return setStatus(`Fetch failed: ${e.message}`,'err'); }
+  try{
+    const r=await fetch(target);
+    if(!r.ok) throw new Error(`Proxy HTTP ${r.status}`);
+    html=await r.text();
+  } catch(e){ return setStatus(`Fetch failed: ${e.message}`,'err'); }
+
+  // Aviso si aún es página de consentimiento
+  if (/consent|__CONSENT|mCONSENT|consent\\.google/i.test(html)) {
+    return setStatus('Google returned a consent page. Update the Worker to send CONSENT cookie and force hl=en&gl=US.', 'err');
+  }
 
   setStatus('Parsing internal data…');
   const feat = extractFeatureGraphic(html);
@@ -187,7 +246,8 @@ async function extract(){
 
   const normalized = normalizeW1024(feat, elKeep.checked);
   elOut.value = normalized; elPrev.src = normalized; elOpen.href = normalized;
-  const s = extractWH(feat); elMeta.textContent = s ? `Original size tokens: w${s.w}×h${s.h} (~${(s.ratio).toFixed(3)}:1)` : 'Original size tokens: unknown';
+  const s = extractWH(feat);
+  elMeta.textContent = s ? `Original size tokens: w${s.w}×h${s.h} (~${(s.ratio).toFixed(3)}:1)` : 'Original size tokens: unknown';
   setStatus('Done ✔','ok'); elRes.classList.remove('hidden');
 }
 
