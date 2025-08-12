@@ -106,11 +106,18 @@
   const SCRIPT_RE = new RegExp('<script[^>]*>([\\s\\S]*?)<\\/script>', 'gi');
   const URL_RE    = new RegExp('https:\\/\\/play-lh\\.googleusercontent\\.com\\/[A-Za-z0-9_\\-][^"\'<>\\s]*', 'g');
 
-  function getScriptBodies(html){
+  function getAllScriptBodies(html){
     const bodies=[]; let m;
     while((m=SCRIPT_RE.exec(html))!==null){ bodies.push(m[1]||''); }
     return bodies;
   }
+
+  // 🔒 Nuevo: quedaos solo con scripts que mencionan el packageId
+  function getAppScriptBodies(html, packageId){
+    const all = getAllScriptBodies(html);
+    return all.filter(s => s.includes('AF_initDataCallback') && s.includes(packageId));
+  }
+
   function extractUrlsFromBodies(bodies){
     const urls=[];
     for(const raw of bodies){ const dec = decodeJSStringEscapes(raw); const found = dec.match(URL_RE) || []; urls.push(...found); }
@@ -129,27 +136,41 @@
     const m = u.match(SIZE_RE);
     if (!m) return false;
     const w = +m[1], h = +m[2];
+    const ratio = w / h;
+    if (!(w > h)) return false;
+    if (ratio < 1.55 || ratio > 1.95) return false; // ~16:9
     if (w < 600 || w > 1400) return false;
     if (h < 300 || h > 700) return false;
     return true;
   }
 
   // --- Scoring -----------------------------------------------------------
-  function scoreUrl(u){
+  function scoreUrl(u, baseCount=1){
     const s = extractWH(u);
     if (!s || !s.ratio || s.w <= s.h) return -1e9;
     const dev = Math.abs(s.ratio - 16/9);
     if (dev > 0.12) return -1e9;
     let sc = 0;
-    sc += dev <= 0.03 ? 8 : 4;                     // closeness to 16:9
-    if (FAV_HEIGHTS.has(s.h)) sc += 12;            // banner-like heights
+    sc += dev <= 0.03 ? 8 : 4;
+    if (FAV_HEIGHTS.has(s.h)) sc += 12;
     const pair = `${s.w}x${s.h}`; if (SUPER_FAV.has(pair)) sc += 6;
-    if (u.includes('-rw')) sc += 3;                // typical delivery flag
-    if ([1080, 720, 480].includes(s.h)) sc -= 8;   // screenshot-ish
-    sc += s.h <= 600 ? 3 : -3;                     // avoid very tall
+    if (u.includes('-rw')) sc += 3;
+    if ([1080, 720, 480].includes(s.h)) sc -= 8;
+    sc += s.h <= 600 ? 3 : -3;
+    // 🔻 Penaliza bases muy repetidas (capturas suelen tener muchas variantes)
+    sc -= Math.max(0, baseCount - 2);
     return sc;
   }
-  function pickBest(urls){ let best=null,bs=-1e9; for(const u of urls){ const s=scoreUrl(u); if(s>bs){ bs=s; best=u; } } return best; }
+  function pickBest(urls, baseCountMap){ 
+    let best=null,bs=-1e9; 
+    for(const u of urls){ 
+      const base=u.split('=')[0];
+      const bc = baseCountMap.get(base) || 1;
+      const s=scoreUrl(u, bc); 
+      if(s>bs){ bs=s; best=u; } 
+    } 
+    return best; 
+  }
 
   // --- Probe real aspect (with timeout) ---------------------------------
   function probeAspect(base, testW = 512, timeoutMs = 1800) {
@@ -164,7 +185,7 @@
         const w = img.naturalWidth || img.width;
         const h = img.naturalHeight || img.height;
         const ratio = h ? w / h : 0;
-        finish({ ok: w > h && ratio > 1.55 && ratio < 1.9, w, h, ratio });
+        finish({ ok: w > h && ratio > 1.55 && ratio < 1.95, w, h, ratio });
       };
       img.onerror = () => { clearTimeout(timer); finish({ ok: false, w: 0, h: 0, ratio: 0, error: true }); };
       img.src = `${base}=w${testW}`;
@@ -183,15 +204,17 @@
   }
 
   // --- Core extraction pipeline -----------------------------------------
-  async function extractFeatureGraphic(html){
-    // 1) Solo scripts AF_initDataCallback
-    const onlyInit = getScriptBodies(html).filter(s=>s.includes('AF_initDataCallback'));
-    let urls = extractUrlsFromBodies(onlyInit);
+  async function extractFeatureGraphic(html, packageId){
+    // 0) Scripts que mencionan explícitamente el packageId
+    let urls = extractUrlsFromBodies(getAppScriptBodies(html, packageId));
 
-    // 2) Fallback: todos los scripts
-    if (!urls.length){ urls = extractUrlsFromBodies(getScriptBodies(html)); }
+    // 1) Fallback: scripts AF_initDataCallback sin filtrar por pkg
+    if (!urls.length){ 
+      const onlyInit = getAllScriptBodies(html).filter(s=>s.includes('AF_initDataCallback'));
+      urls = extractUrlsFromBodies(onlyInit);
+    }
 
-    // 3) Fallback: HTML decodificado completo
+    // 2) Fallback: HTML decodificado completo
     if (!urls.length){
       const dec = decodeJSStringEscapes(html);
       const all = dec.match(URL_RE) || [];
@@ -202,10 +225,12 @@
     urls = urls.filter(u => !isJunk(u));
     if (!urls.length) return null;
 
-    // Bases únicas (limita a 40 por seguridad)
-    const bases = Array.from(new Set(urls.map(u => u.split('=')[0]))).slice(0, 40);
+    // Cuenta ocurrencias por base (para penalizar capturas)
+    const baseCountMap = new Map();
+    for (const u of urls){ const b=u.split('=')[0]; baseCountMap.set(b, (baseCountMap.get(b)||0)+1); }
 
-    // PROBE en paralelo
+    // Bases únicas (máx 40) + PROBE en paralelo
+    const bases = Array.from(baseCountMap.keys()).slice(0, 40);
     const probeResults = await Promise.all(bases.map(b => probeAspect(b, 512, 1800)));
     const validBases = bases
       .map((base, i) => ({ base, probe: probeResults[i] }))
@@ -213,11 +238,10 @@
 
     if (!validBases.length) return null;
 
-    // Mapa base -> urls originales vistas
+    // Recolecta URLs por base, sintetiza si hace falta (solo si base es válida)
     const groupsMap = new Map();
     for (const u of urls){ const base = u.split('=')[0]; if (!groupsMap.has(base)) groupsMap.set(base, new Set()); groupsMap.get(base).add(u); }
 
-    // Construye candidatos
     const candidateUrls = [];
     for (const { base } of validBases) {
       const list = Array.from(groupsMap.get(base) || []);
@@ -230,13 +254,13 @@
     const cleanCandidates = uniqueInOrder(candidateUrls).filter(passesSizeRange);
     if (!cleanCandidates.length) return null;
 
-    // Score por grupos y elige el mejor global
+    // Score por grupos y elige el mejor global (con penalización por baseCount)
     const groups = byBase(cleanCandidates);
     let best=null, bestScore=-1e9;
     for (const g of groups){
-      const candidate = pickBest(g.urls);
+      const candidate = pickBest(g.urls, baseCountMap);
       if (!candidate) continue;
-      const sc = scoreUrl(candidate);
+      const sc = scoreUrl(candidate, baseCountMap.get(candidate.split('=')[0])||1);
       if (sc > bestScore){ best = candidate; bestScore = sc; }
     }
     if (DEBUG) { console.log('[FGE] best:', best); }
@@ -299,7 +323,7 @@
 
       setStatus('Parsing internal data…');
       try {
-        const feat = await extractFeatureGraphic(html);
+        const feat = await extractFeatureGraphic(html, pkg);
         if (!feat) return setStatus('No feature graphic found.','err');
 
         const normalized = normalizeW1024(feat, elKeep.checked);
