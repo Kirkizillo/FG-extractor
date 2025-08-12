@@ -55,9 +55,12 @@
   </div>
 
 <script>
+// --- Constants -----------------------------------------------------------
 const IMG_HOST = "play-lh.googleusercontent.com";
 const SIZE_RE = /=w(\d+)-h(\d+)/;
+const FAV_HEIGHTS = new Set([405, 470, 576]); // heights commonly used by feature graphics
 
+// --- Helpers -------------------------------------------------------------
 function normalizeW1024(u, keep) {
   if (!u || !u.includes(IMG_HOST)) return u;
   const base = u.split("=")[0];
@@ -69,43 +72,6 @@ function extractWH(url) {
   if (!m) return null;
   const w = parseInt(m[1], 10), h = parseInt(m[2], 10);
   return { w, h, ratio: h ? w / h : null };
-}
-
-function isPortrait(u) {
-  const s = extractWH(u);
-  return !!(s && s.h && s.w && s.h > s.w && s.w / s.h < 0.75);
-}
-
-function scoreCandidate(u, i, urls) {
-  const s = extractWH(u);
-  if (!s || !s.ratio) return -Infinity;
-  if (!(s.w >= s.h)) return -Infinity;
-  let score = 0;
-
-  const dev = Math.abs(s.ratio - (16/9));
-  if (dev <= 0.03) score += 4;
-  else if (dev <= 0.12) score += 2;
-  else return -Infinity;
-
-  if (u.includes("-rw")) score += 1;
-  if ([405, 470, 576].includes(s.h)) score += 3;
-  if (s.h === 1080 || s.h === 720) score -= 2;
-
-  const window = urls.slice(i + 1, i + 6);
-  if (window.some(isPortrait)) score += 2;
-
-  score += Math.max(0, 3 - i * 0.25);
-
-  return score;
-}
-
-function pickFeatureGraphic(urls) {
-  const candidates = urls
-    .map((u, i) => ({ u, i, s: scoreCandidate(u, i, urls) }))
-    .filter(x => x.s > -Infinity);
-  if (!candidates.length) return null;
-  candidates.sort((a, b) => (b.s - a.s) || (a.i - b.i));
-  return candidates[0].u;
 }
 
 function uniqueInOrder(arr) {
@@ -135,8 +101,16 @@ function buildPlayUrl(pkg) {
   return `https://play.google.com/store/apps/details?${params.toString()}`;
 }
 
+// Parse ALL occurrences, including inline JSON blobs (feature graphic often lives there)
 function extractImageUrlsFromHtml(html) {
   const urls = [];
+
+  // 1) Any raw occurrences in the entire HTML (scripts + markup)
+  const rawRe = /https:\/\/play-lh\.googleusercontent\.com\/[A-Za-z0-9_\-][^"'<>\s]*/g;
+  const rawMatches = html.match(rawRe) || [];
+  urls.push(...rawMatches);
+
+  // 2) Also consider <img ... src/srcset> to keep order diversity (not strictly necessary, but cheap)
   const imgSrcRegex = /<img[^>]+(src|data-src|srcset)=("|')([^"']+)(\2)/gi;
   let m;
   while ((m = imgSrcRegex.exec(html)) !== null) {
@@ -152,13 +126,64 @@ function extractImageUrlsFromHtml(html) {
       }
     }
   }
-  const rawRe = /https:\/\/play-lh\.googleusercontent\.com\/[A-Za-z0-9_\-][^"'<>\s]*/g;
-  const rawMatches = html.match(rawRe) || [];
-  urls.push(...rawMatches);
 
   return uniqueInOrder(urls);
 }
 
+// --- Scoring: target the hidden feature graphic rather than visible gallery ---
+function scoreCandidate(u) {
+  const s = extractWH(u);
+  if (!s || !s.ratio) return -Infinity;
+
+  // Must be landscape and close to 16:9
+  if (s.w <= s.h) return -Infinity;
+  const dev = Math.abs(s.ratio - (16/9));
+  if (dev > 0.12) return -Infinity; // too far from 16:9
+
+  let score = 0;
+
+  // Closer to 16:9 is better
+  if (dev <= 0.03) score += 6; else score += 3;
+
+  // Strongly prefer known banner heights
+  if (FAV_HEIGHTS.has(s.h)) score += 10;
+
+  // Prefer -rw (common in feature graphics delivery)
+  if (u.includes('-rw')) score += 3;
+
+  // Avoid typical screenshot heights
+  if (s.h === 1080 || s.h === 720 || s.h === 480) score -= 6;
+
+  // Prefer "banner-like" scale (not too tall). If height <= 600, bonus; else slight penalty
+  if (s.h <= 600) score += 2; else score -= 2;
+
+  return score;
+}
+
+function pickFeatureGraphic(urls) {
+  // Consider only play-lh images
+  const candidates = urls.filter(u => u.includes(IMG_HOST));
+  if (!candidates.length) return null;
+
+  // Score all, keep the highest scoring
+  let best = null;
+  let bestScore = -Infinity;
+  for (const u of candidates) {
+    const s = scoreCandidate(u);
+    if (s > bestScore) { best = u; bestScore = s; }
+  }
+
+  // If nothing scored (very unusual), fall back to first near-16:9 under 600px height
+  if (!best) {
+    for (const u of candidates) {
+      const s = extractWH(u);
+      if (s && s.w > s.h && s.ratio && s.ratio > 1.6 && s.ratio < 1.95 && s.h <= 600) { best = u; break; }
+    }
+  }
+  return best;
+}
+
+// --- UI wiring -----------------------------------------------------------
 const elInput = document.getElementById('input');
 const elGo = document.getElementById('go');
 const elKeep = document.getElementById('keep169');
@@ -203,10 +228,7 @@ async function extract() {
   setStatus('Parsing images…');
   const urls = extractImageUrlsFromHtml(html);
   const feat = pickFeatureGraphic(urls);
-  if (!feat) {
-    setStatus('No feature graphic found.', 'err');
-    return;
-  }
+  if (!feat) { setStatus('No feature graphic found.', 'err'); return; }
 
   const normalized = normalizeW1024(feat, elKeep.checked);
   elOut.value = normalized;
@@ -214,7 +236,7 @@ async function extract() {
   elOpen.href = normalized;
 
   const s = extractWH(feat);
-  elMeta.textContent = s ? `Original size: w${s.w}×h${s.h} (~${(s.ratio).toFixed(3)}:1)` : 'Original size: unknown';
+  elMeta.textContent = s ? `Original size tokens: w${s.w}×h${s.h} (~${(s.ratio).toFixed(3)}:1)` : 'Original size tokens: unknown';
 
   setStatus('Done ✔', 'ok');
   elRes.classList.remove('hidden');
