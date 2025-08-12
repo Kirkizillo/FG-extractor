@@ -54,6 +54,7 @@
       </div>
     </section>
   </div>
+
 <script>
 (() => {
   'use strict';
@@ -66,30 +67,30 @@
   const LS_KEY_PROXY = 'fge_proxy_endpoint';
 
   // --- Small utils -------------------------------------------------------
-  const normalizeW1024 = (u, keep) => {
+  function normalizeW1024(u, keep) {
     if (!u || !u.includes(IMG_HOST)) return u;
     const base = u.split("=")[0];
     return keep ? `${base}=w1024-h576-rw` : `${base}=w1024`;
-  };
-  const extractWH = (url) => {
+  }
+  function extractWH(url) {
     const m = url.match(SIZE_RE);
     if (!m) return null;
     const w = parseInt(m[1], 10), h = parseInt(m[2], 10);
     return { w, h, ratio: h ? w / h : null };
-  };
-  const uniqueInOrder = (arr) => {
+  }
+  function uniqueInOrder(arr) {
     const seen = new Set(); const out = [];
     for (const x of arr) if (!seen.has(x)) { seen.add(x); out.push(x); }
     return out;
-  };
-  const byBase = (urls) => {
+  }
+  function byBase(urls){
     const groups = new Map();
     for (const u of urls){ const base=u.split('=')[0]; if(!groups.has(base)) groups.set(base,[]); groups.get(base).push(u); }
     return Array.from(groups.entries()).map(([base,urls])=>({base,urls}));
-  };
+  }
 
   // Decode \uXXXX and \/, then HTML entities
-  const decodeJSStringEscapes = (str) => {
+  function decodeJSStringEscapes(str){
     try{
       const unescapedUnicode = str.replace(/\\u([0-9a-fA-F]{4})/g, (_,h)=>String.fromCharCode(parseInt(h,16)));
       const slashesFixed = unescapedUnicode.replace(/\\\//g,'/');
@@ -97,46 +98,41 @@
       ta.innerHTML = slashesFixed;
       return ta.value;
     }catch{ return str; }
-  };
+  }
 
   // --- Source collectors -------------------------------------------------
   const SCRIPT_RE = new RegExp('<script[^>]*>([\\s\\S]*?)<\\/script>', 'gi');
-  const URL_RE    = new RegExp('https:\\/\\/play-lh\\.googleusercontent\\.com\\/[A-Za-z0-9_\\-][^\"\'<>\\s]*', 'g');
+  const URL_RE    = new RegExp('https:\\/\\/play-lh\\.googleusercontent\\.com\\/[A-Za-z0-9_\\-][^"\'<>\\s]*', 'g');
 
-  const getScriptBodies = (html) => {
-    const bodies = []; let m;
-    while ((m = SCRIPT_RE.exec(html)) !== null) bodies.push(m[1] || '');
+  function getScriptBodies(html){
+    const bodies=[]; let m;
+    while((m=SCRIPT_RE.exec(html))!==null){ bodies.push(m[1]||''); }
     return bodies;
-  };
-  const extractUrlsFromBodies = (bodies) => {
-    const urls = [];
-    for (const raw of bodies) {
-      const dec = decodeJSStringEscapes(raw);
-      const found = dec.match(URL_RE) || [];
-      urls.push(...found);
-    }
+  }
+  function extractUrlsFromBodies(bodies){
+    const urls=[];
+    for(const raw of bodies){ const dec = decodeJSStringEscapes(raw); const found = dec.match(URL_RE) || []; urls.push(...found); }
     return uniqueInOrder(urls);
-  };
+  }
 
   // --- Filters -----------------------------------------------------------
-  const isAvatarOrJunk = (u) => {
+  function isAvatarOrJunk(u){
     if (!u.includes(IMG_HOST)) return true;                 // only play-lh
     if (u.includes('/a-/') || u.includes('/a/')) return true; // user avatars
-    if (/(^|[?&])mo(=|$)|\\b=mo\\b/.test(u)) return true;   // mini avatar suffix
-    if (!SIZE_RE.test(u)) return true;                      // must have =w###-h###
-    return false;
-  };
-  const passesSizeRange = (u) => {
+    if (/(^|[?&])mo(=|$)|\b=mo\b/.test(u)) return true;     // mini avatar suffix
+    return false;                                           // do not require size tokens here
+  }
+  function passesSizeRange(u){
     const m = u.match(SIZE_RE);
     if (!m) return false;
     const w = +m[1], h = +m[2];
     if (w < 600 || w > 1400) return false;
     if (h < 300 || h > 700) return false;
     return true;
-  };
+  }
 
   // --- Scoring -----------------------------------------------------------
-  const scoreUrl = (u) => {
+  function scoreUrl(u){
     const s = extractWH(u);
     if (!s || !s.ratio || s.w <= s.h) return -1e9;
     const dev = Math.abs(s.ratio - 16/9);
@@ -149,11 +145,22 @@
     if ([1080, 720, 480].includes(s.h)) sc -= 8;   // screenshot-ish
     sc += s.h <= 600 ? 3 : -3;                     // avoid very tall
     return sc;
-  };
-  const pickBest = (urls) => { let best=null,bs=-1e9; for(const u of urls){ const s=scoreUrl(u); if(s>bs){ bs=s; best=u; } } return best; };
+  }
+  function pickBest(urls){ let best=null,bs=-1e9; for(const u of urls){ const s=scoreUrl(u); if(s>bs){ bs=s; best=u; } } return best; }
+
+  // --- Synthesize size variants for base-only URLs ----------------------
+  function synthesizeBannerVariants(base){
+    const variants = [
+      `${base}=w1024-h576-rw`, `${base}=w1024-h576`,
+      `${base}=w832-h470-rw`,  `${base}=w832-h470`,
+      `${base}=w720-h405-rw`,  `${base}=w720-h405`,
+      `${base}=w1024-h500-rw`, `${base}=w1024-h500`,
+    ];
+    return Array.from(new Set(variants));
+  }
 
   // --- Core extraction pipeline -----------------------------------------
-  const extractFeatureGraphic = (html) => {
+  function extractFeatureGraphic(html){
     // 1) AF_initDataCallback scripts
     const onlyInit = getScriptBodies(html).filter(s=>s.includes('AF_initDataCallback'));
     let urls = extractUrlsFromBodies(onlyInit);
@@ -168,11 +175,26 @@
       urls = uniqueInOrder(all);
     }
 
-    // Clean + bannerish range
-    urls = urls.filter(u => !isAvatarOrJunk(u) && passesSizeRange(u));
+    // Filter junk (do NOT require size tokens yet)
+    urls = urls.filter(u => !isAvatarOrJunk(u));
 
-    // Group + pick
-    const groups = byBase(urls);
+    // Group by base; if no sized variants exist, synthesize banner sizes
+    const groupsMap = new Map();
+    for (const u of urls){ const base = u.split('=')[0]; if(!groupsMap.has(base)) groupsMap.set(base,new Set()); groupsMap.get(base).add(u); }
+
+    const candidateUrls = [];
+    for (const [base,set] of groupsMap.entries()){
+      const list = Array.from(set);
+      const hasSized = list.some(x => SIZE_RE.test(x));
+      if (!hasSized) candidateUrls.push(...synthesizeBannerVariants(base));
+      else candidateUrls.push(...list);
+    }
+
+    // Keep banner-ish range
+    const cleanCandidates = uniqueInOrder(candidateUrls).filter(passesSizeRange);
+
+    // Group again and score
+    const groups = byBase(cleanCandidates);
     let best=null, bestScore=-1e9;
     for (const g of groups){
       const candidate=pickBest(g.urls);
@@ -181,16 +203,16 @@
       if(sc>bestScore){ best=candidate; bestScore=sc; }
     }
     return best;
-  };
+  }
 
   // --- Proxy persistence -------------------------------------------------
-  const getProxy = () => {
+  function getProxy(){
     const ls=localStorage.getItem(LS_KEY_PROXY); if(ls) return ls;
     const p=new URLSearchParams(location.search).get('proxy');
-    if(p){ localStorage.setItem(LS_KEY_PROXY,p); return p;}
+    if(p){ localStorage.setItem(LS_KEY_PROXY,p); return p; }
     return null;
-  };
-  const setProxyInteractive = () => {
+  }
+  function setProxyInteractive(){
     const cur=getProxy()||'';
     const val=prompt('Proxy endpoint (must end with ?url=):',cur);
     if(!val) return;
@@ -199,83 +221,65 @@
       if(!val.endsWith('=') && !val.endsWith('%3D')) return alert('It should end with ?url=');
       localStorage.setItem(LS_KEY_PROXY,val);
     }catch{ alert('Invalid URL'); }
-  };
+  }
 
-  // --- UI wiring (attach safely) ----------------------------------------
+  // --- UI wiring ---------------------------------------------------------
   document.addEventListener('DOMContentLoaded', () => {
-    try {
-      const elInput = document.getElementById('input');
-      const elGo = document.getElementById('go');
-      const elKeep = document.getElementById('keep169');
-      const elStatus = document.getElementById('status');
-      const elRes = document.getElementById('result');
-      const elOut = document.getElementById('outUrl');
-      const elCopy = document.getElementById('copyUrl');
-      const elPrev = document.getElementById('preview');
-      const elMeta = document.getElementById('meta');
-      const elOpen = document.getElementById('openRaw');
-      const elProxyBtn = document.getElementById('proxyBtn');
+    const elInput = document.getElementById('input');
+    const elGo = document.getElementById('go');
+    const elKeep = document.getElementById('keep169');
+    const elStatus = document.getElementById('status');
+    const elRes = document.getElementById('result');
+    const elOut = document.getElementById('outUrl');
+    const elCopy = document.getElementById('copyUrl');
+    const elPrev = document.getElementById('preview');
+    const elMeta = document.getElementById('meta');
+    const elOpen = document.getElementById('openRaw');
+    const elProxyBtn = document.getElementById('proxyBtn');
 
-      const setStatus = (msg, kind='info') => {
-        const colors={info:'text-slate-400', ok:'text-emerald-400', err:'text-rose-400'};
-        elStatus.className=`mt-4 text-sm ${colors[kind]||colors.info}`;
-        elStatus.textContent=msg||'';
-      };
-
-      const extract = async () => {
-        elRes.classList.add('hidden'); setStatus('');
-        const pkg = (() => {
-          const t=(elInput.value||'').trim(); if(!t) return null;
-          try{ const u=new URL(t); if(u.hostname.includes('play.google.com')) return new URLSearchParams(u.search).get('id'); return null; }
-          catch{ return t; }
-        })();
-        if (!pkg) return setStatus('Enter a Play URL or a valid package ID.','err');
-
-        const proxy = getProxy(); if (!proxy) return setStatus('Set proxy (gear button) first.','err');
-        const playUrl = `https://play.google.com/store/apps/details?` + new URLSearchParams({id:pkg, hl:'en', gl:'US'}).toString();
-        const target = proxy.endsWith('=') ? proxy + encodeURIComponent(playUrl) : proxy + playUrl;
-
-        setStatus('Fetching page via proxy…'); let html='';
-        try{
-          const r=await fetch(target);
-          if(!r.ok) throw new Error(`Proxy HTTP ${r.status}`);
-          html=await r.text();
-        } catch(e){ return setStatus(`Fetch failed: ${e.message}`,'err'); }
-
-        // Consent page detector (optional)
-        if (/consent|__CONSENT|mCONSENT|consent\.google/i.test(html)) {
-          return setStatus('Google returned a consent page. Update the Worker to send CONSENT cookie and force hl=en&gl=US.', 'err');
-        }
-
-        setStatus('Parsing internal data…');
-        const feat = extractFeatureGraphic(html);
-        if (!feat) return setStatus('No feature graphic found.','err');
-
-        const normalized = normalizeW1024(feat, elKeep.checked);
-        elOut.value = normalized; elPrev.src = normalized; elOpen.href = normalized;
-        const s = extractWH(feat);
-        elMeta.textContent = s ? `Original size tokens: w${s.w}×h${s.h} (~${(s.ratio).toFixed(3)}:1)` : 'Original size tokens: unknown';
-        setStatus('Done ✔','ok'); elRes.classList.remove('hidden');
-      };
-
-      const copy = async () => {
-        try { await navigator.clipboard.writeText(document.getElementById('outUrl').value);
-          elCopy.textContent='Copied'; setTimeout(()=> elCopy.textContent='Copy URL', 1000);
-        } catch(e) { console.error(e); }
-      };
-
-      // Attach listeners
-      elGo?.addEventListener('click', extract);
-      elInput?.addEventListener('keydown', (e)=>{ if(e.key==='Enter') extract(); });
-      elCopy?.addEventListener('click', copy);
-      elProxyBtn?.addEventListener('click', setProxyInteractive);
-
-      // Initial hint
-      if (!getProxy()) setStatus('Click the gear to set your proxy endpoint (ends with ?url=).', 'info');
-    } catch (err) {
-      console.error('[FGE] init error:', err);
-      alert('Script init error. Open console for details.');
+    function setStatus(msg, kind='info'){
+      const colors={info:'text-slate-400', ok:'text-emerald-400', err:'text-rose-400'};
+      elStatus.className=`mt-4 text-sm ${colors[kind]||colors.info}`;
+      elStatus.textContent=msg||'';
     }
+
+    async function extract(){
+      elRes.classList.add('hidden'); setStatus('');
+      const pkg = (() => { const t=(elInput.value||'').trim(); if(!t) return null; try{ const u=new URL(t); if(u.hostname.includes('play.google.com')) return new URLSearchParams(u.search).get('id'); return null; } catch{ return t; } })();
+      if (!pkg) return setStatus('Enter a Play URL or a valid package ID.','err');
+      const proxy = getProxy(); if (!proxy) return setStatus('Set proxy (gear button) first.','err');
+      const playUrl = `https://play.google.com/store/apps/details?` + new URLSearchParams({id:pkg, hl:'en', gl:'US'}).toString();
+      const target = proxy.endsWith('=') ? proxy + encodeURIComponent(playUrl) : proxy + playUrl;
+
+      setStatus('Fetching page via proxy…'); let html='';
+      try{ const r=await fetch(target); if(!r.ok) throw new Error(`Proxy HTTP ${r.status}`); html=await r.text(); }
+      catch(e){ return setStatus(`Fetch failed: ${e.message}`,'err'); }
+
+      if (/consent|__CONSENT|mCONSENT|consent\.google/i.test(html)) {
+        return setStatus('Google returned a consent page. Update the Worker to send CONSENT cookie and force hl=en&gl=US.', 'err');
+      }
+
+      setStatus('Parsing internal data…');
+      const feat = extractFeatureGraphic(html);
+      if (!feat) return setStatus('No feature graphic found.','err');
+
+      const normalized = normalizeW1024(feat, elKeep.checked);
+      elOut.value = normalized; elPrev.src = normalized; elOpen.href = normalized;
+      const s = extractWH(feat);
+      elMeta.textContent = s ? `Original size tokens: w${s.w}×h${s.h} (~${(s.ratio).toFixed(3)}:1)` : 'Original size tokens: unknown';
+      setStatus('Done ✔','ok'); elRes.classList.remove('hidden');
+    }
+
+    async function copy(){
+      try { await navigator.clipboard.writeText(elOut.value); elCopy.textContent='Copied'; setTimeout(()=> elCopy.textContent='Copy URL', 1000); } catch {}
+    }
+
+    elGo?.addEventListener('click', extract);
+    elInput?.addEventListener('keydown', (e)=>{ if(e.key==='Enter') extract(); });
+    elCopy?.addEventListener('click', copy);
+    elProxyBtn?.addEventListener('click', setProxyInteractive);
+
+    if (!getProxy()) setStatus('Click the gear to set your proxy endpoint (ends with ?url=).', 'info');
   });
 })();
 </script>
