@@ -59,7 +59,7 @@
 // --- Constants -----------------------------------------------------------
 const IMG_HOST = "play-lh.googleusercontent.com";
 const SIZE_RE = /=w(\d+)-h(\d+)/;
-const FAV_HEIGHTS = new Set([405, 470, 576]); // banner-ish heights
+const FAV_HEIGHTS = new Set([405, 470, 500, 576]); // include 500 for 1024x500 style
 const LS_KEY_PROXY = 'fge_proxy_endpoint';
 
 // --- Helpers -------------------------------------------------------------
@@ -103,7 +103,7 @@ function buildPlayUrl(pkg) {
   return `https://play.google.com/store/apps/details?${params.toString()}`;
 }
 
-// Parse all occurrences, including inline JSON blobs
+// Parse ALL occurrences, then group by base (strip size tokens)
 function extractImageUrlsFromHtml(html) {
   const urls = [];
   const rawRe = /https:\/\/play-lh\.googleusercontent\.com\/[A-Za-z0-9_\-][^"'<>\s]*/g;
@@ -125,70 +125,85 @@ function extractImageUrlsFromHtml(html) {
       }
     }
   }
-  return uniqueInOrder(urls);
-}
+  const uniq = uniqueInOrder(urls);
 
-// --- Scoring to target feature graphic ----------------------------------
-function scoreCandidate(u) {
-  const s = extractWH(u);
-  if (!s || !s.ratio) return -Infinity;
-  if (s.w <= s.h) return -Infinity; // must be landscape
-  const dev = Math.abs(s.ratio - (16/9));
-  if (dev > 0.12) return -Infinity; // too far from 16:9
-
-  let score = 0;
-  score += dev <= 0.03 ? 6 : 3; // closeness to 16:9
-  if (FAV_HEIGHTS.has(s.h)) score += 10; // banner-like heights
-  if (u.includes('-rw')) score += 3; // typical delivery flag
-  if (s.h === 1080 || s.h === 720 || s.h === 480) score -= 6; // screenshot-ish
-  if (s.h <= 600) score += 2; else score -= 2; // avoid very tall
-  return score;
-}
-
-function pickFeatureGraphic(urls) {
-  const candidates = urls.filter(u => u.includes(IMG_HOST));
-  if (!candidates.length) return null;
-  let best = null, bestScore = -Infinity;
-  for (const u of candidates) {
-    const s = scoreCandidate(u);
-    if (s > bestScore) { best = u; bestScore = s; }
+  const groups = new Map();
+  for (const u of uniq) {
+    const base = u.split('=')[0];
+    const tok = SIZE_RE.exec(u);
+    const wh = tok ? { w: parseInt(tok[1], 10), h: parseInt(tok[2], 10) } : null;
+    if (!groups.has(base)) groups.set(base, { base, urls: [], tokens: new Set() });
+    const g = groups.get(base);
+    g.urls.push(u);
+    if (wh) g.tokens.add(`${wh.w}x${wh.h}`);
   }
-  if (!best) {
-    for (const u of candidates) {
+  return Array.from(groups.values());
+}
+
+// Scoring at GROUP level to avoid picking a random screenshot variant
+function pickFeatureGraphic(groups) {
+  if (!groups || !groups.length) return null;
+
+  function scoreGroup(g) {
+    let bestUrl = null;
+    let bestUrlScore = -Infinity;
+    for (const u of g.urls) {
       const s = extractWH(u);
-      if (s && s.w > s.h && s.ratio && s.ratio > 1.6 && s.ratio < 1.95 && s.h <= 600) { best = u; break; }
+      if (!s || !s.ratio || s.w <= s.h) continue;
+      const dev = Math.abs(s.ratio - (16/9));
+      if (dev > 0.12) continue;
+      let score = 0;
+      score += dev <= 0.03 ? 6 : 3;
+      if (u.includes('-rw')) score += 3;
+      if (FAV_HEIGHTS.has(s.h)) score += 10;
+      if (s.h === 1080 || s.h === 720 || s.h === 480) score -= 6;
+      if (s.h <= 600) score += 2; else score -= 2;
+      if (score > bestUrlScore) { bestUrlScore = score; bestUrl = u; }
+    }
+    const hasFavToken = Array.from(g.tokens).some(t => {
+      const [w,h] = t.split('x').map(n=>parseInt(n,10));
+      return FAV_HEIGHTS.has(h);
+    });
+    if (hasFavToken) bestUrlScore += 4;
+    return { url: bestUrl, score: bestUrlScore };
+  }
+
+  let best = null, bestScore = -Infinity;
+  for (const g of groups) {
+    const { url, score } = scoreGroup(g);
+    if (url && score > bestScore) { best = url; bestScore = score; }
+  }
+
+  if (!best) {
+    for (const g of groups) {
+      for (const u of g.urls) {
+        const s = extractWH(u);
+        if (s && s.w > s.h && s.ratio > 1.6 && s.ratio < 1.95 && s.h <= 600) { best = u; break; }
+      }
+      if (best) break;
     }
   }
   return best;
 }
 
 // --- Proxy persistence ---------------------------------------------------
+const LS_KEY = 'fge_proxy_endpoint';
 function getProxy() {
-  // Priority: localStorage → URL ?proxy= → null
-  const ls = localStorage.getItem(LS_KEY_PROXY);
+  const ls = localStorage.getItem(LS_KEY);
   if (ls) return ls;
   const p = new URLSearchParams(location.search).get('proxy');
-  if (p) {
-    localStorage.setItem(LS_KEY_PROXY, p);
-    return p;
-  }
+  if (p) { localStorage.setItem(LS_KEY, p); return p; }
   return null;
 }
-
 function setProxyInteractive() {
   const current = getProxy() || '';
   const val = prompt('Proxy endpoint (must end with ?url=):', current);
   if (!val) return;
   try {
     const u = new URL(val);
-    if (!val.endsWith('=') && !val.endsWith('%3D')) {
-      alert('It should end with ?url=');
-      return;
-    }
-    localStorage.setItem(LS_KEY_PROXY, val);
-  } catch {
-    alert('Invalid URL');
-  }
+    if (!val.endsWith('=') && !val.endsWith('%3D')) { alert('It should end with ?url='); return; }
+    localStorage.setItem(LS_KEY, val);
+  } catch { alert('Invalid URL'); }
 }
 
 // --- UI wiring -----------------------------------------------------------
@@ -235,8 +250,8 @@ async function extract() {
   }
 
   setStatus('Parsing images…');
-  const urls = extractImageUrlsFromHtml(html);
-  const feat = pickFeatureGraphic(urls);
+  const groups = extractImageUrlsFromHtml(html);
+  const feat = pickFeatureGraphic(groups);
   if (!feat) { setStatus('No feature graphic found.', 'err'); return; }
 
   const normalized = normalizeW1024(feat, elKeep.checked);
@@ -258,7 +273,6 @@ elCopy.addEventListener('click', async () => {
 });
 elProxyBtn.addEventListener('click', setProxyInteractive);
 
-// One-time hint if proxy missing (no noisy prompts)
 window.addEventListener('load', () => {
   if (!getProxy()) setStatus('Click the gear to set your proxy endpoint (ends with ?url=).', 'info');
 });
