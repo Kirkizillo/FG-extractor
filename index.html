@@ -66,6 +66,9 @@
   const SUPER_FAV = new Set(["1024x576","832x470","720x405","1024x500","512x288"]);
   const LS_KEY_PROXY = 'fge_proxy_endpoint';
 
+// Excluir badges/iconos de rating por palabras clave en la ruta
+const BADGE_RE = /(badge|rating|contentrating|age|pegi|esrb|usk|parental|family|editor.?choice)/i;
+
   // --- Small utils -------------------------------------------------------
   function normalizeW1024(u, keep) {
     if (!u || !u.includes(IMG_HOST)) return u;
@@ -116,11 +119,12 @@
   }
 
   // --- Filters -----------------------------------------------------------
-  function isAvatarOrJunk(u){
-    if (!u.includes(IMG_HOST)) return true;                 // only play-lh
-    if (u.includes('/a-/') || u.includes('/a/')) return true; // user avatars
-    if (/(^|[?&])mo(=|$)|\b=mo\b/.test(u)) return true;     // mini avatar suffix
-    return false;                                           // do not require size tokens here
+  function isJunk(u){
+  if (!u.includes(IMG_HOST)) return true;                 // solo play-lh
+  if (u.includes('/a-/') || u.includes('/a/')) return true; // avatares
+  if (/(^|[?&])mo(=|$)|\b=mo\b/.test(u)) return true;     // sufijo de avatar mini
+  if (BADGE_RE.test(u)) return true;                      // badges / ratings
+  return false;                                           // NO exigimos aún =w-h
   }
   function passesSizeRange(u){
     const m = u.match(SIZE_RE);
@@ -160,50 +164,83 @@
   }
 
   // --- Core extraction pipeline -----------------------------------------
-  function extractFeatureGraphic(html){
-    // 1) AF_initDataCallback scripts
-    const onlyInit = getScriptBodies(html).filter(s=>s.includes('AF_initDataCallback'));
-    let urls = extractUrlsFromBodies(onlyInit);
+  async function extractFeatureGraphic(html){
+  // 1) Solo scripts AF_initDataCallback
+  const onlyInit = getScriptBodies(html).filter(s=>s.includes('AF_initDataCallback'));
+  let urls = extractUrlsFromBodies(onlyInit);
 
-    // 2) Fallback: all scripts
-    if (!urls.length){ urls = extractUrlsFromBodies(getScriptBodies(html)); }
+  // 2) Fallback: todos los scripts
+  if (!urls.length){ urls = extractUrlsFromBodies(getScriptBodies(html)); }
 
-    // 3) Fallback: whole HTML (decoded)
-    if (!urls.length){
-      const dec = decodeJSStringEscapes(html);
-      const all = dec.match(URL_RE) || [];
-      urls = uniqueInOrder(all);
-    }
-
-    // Filter junk (do NOT require size tokens yet)
-    urls = urls.filter(u => !isAvatarOrJunk(u));
-
-    // Group by base; if no sized variants exist, synthesize banner sizes
-    const groupsMap = new Map();
-    for (const u of urls){ const base = u.split('=')[0]; if(!groupsMap.has(base)) groupsMap.set(base,new Set()); groupsMap.get(base).add(u); }
-
-    const candidateUrls = [];
-    for (const [base,set] of groupsMap.entries()){
-      const list = Array.from(set);
-      const hasSized = list.some(x => SIZE_RE.test(x));
-      if (!hasSized) candidateUrls.push(...synthesizeBannerVariants(base));
-      else candidateUrls.push(...list);
-    }
-
-    // Keep banner-ish range
-    const cleanCandidates = uniqueInOrder(candidateUrls).filter(passesSizeRange);
-
-    // Group again and score
-    const groups = byBase(cleanCandidates);
-    let best=null, bestScore=-1e9;
-    for (const g of groups){
-      const candidate=pickBest(g.urls);
-      if(!candidate) continue;
-      const sc=scoreUrl(candidate);
-      if(sc>bestScore){ best=candidate; bestScore=sc; }
-    }
-    return best;
+  // 3) Fallback: HTML decodificado completo
+  if (!urls.length){
+    const dec = decodeJSStringEscapes(html);
+    const all = dec.match(URL_RE) || [];
+    urls = uniqueInOrder(all);
   }
+
+  // Filtra basura (sin exigir todavía =w-h)
+  urls = urls.filter(u => !isJunk(u));
+
+  // Agrupa por base
+  const groupsMap = new Map();
+  for (const u of urls){
+    const base = u.split('=')[0];
+    if (!groupsMap.has(base)) groupsMap.set(base, new Set());
+    groupsMap.get(base).add(u);
+  }
+
+  // Candidatos ordenados por heurística (bases primero por “pinta”)
+  const bases = Array.from(groupsMap.keys());
+
+  // 🔎 PROBE: valida que el base sea realmente apaisado ~16:9
+  const validBases = [];
+  for (const base of bases) {
+    const probe = await probeAspect(base, 512);
+    if (probe.ok) validBases.push({ base, probe });
+  }
+
+  // Si no hay bases válidas, aborta
+  if (!validBases.length) return null;
+
+  // Para cada base válida, usa sus variantes de tamaño reales o sintetiza típicas
+  const candidateUrls = [];
+  for (const { base } of validBases) {
+    const list = Array.from(groupsMap.get(base));
+    const hasSized = list.some(x => SIZE_RE.test(x));
+    if (hasSized) {
+      candidateUrls.push(...list);
+    } else {
+      // sintetiza solo si el base pasó el probe
+      candidateUrls.push(
+        `${base}=w1024-h576-rw`, `${base}=w1024-h576`,
+        `${base}=w832-h470-rw`,  `${base}=w832-h470`,
+        `${base}=w720-h405-rw`,  `${base}=w720-h405`,
+        `${base}=w1024-h500-rw`, `${base}=w1024-h500`,
+      );
+    }
+  }
+
+  // Limpieza final, rango “banner-ish” y dedup
+  const cleanCandidates = uniqueInOrder(candidateUrls).filter(u => {
+    const m = u.match(SIZE_RE); if (!m) return false;
+    const w = +m[1], h = +m[2];
+    if (w < 600 || w > 1400) return false;
+    if (h < 300 || h > 700) return false;
+    return true;
+  });
+
+  // Score por grupos y elige el mejor global
+  const groups = byBase(cleanCandidates);
+  let best=null, bestScore=-1e9;
+  for (const g of groups){
+    const candidate = pickBest(g.urls);
+    if (!candidate) continue;
+    const sc = scoreUrl(candidate);
+    if (sc > bestScore){ best = candidate; bestScore = sc; }
+  }
+  return best;
+}
 
   // --- Proxy persistence -------------------------------------------------
   function getProxy(){
@@ -260,7 +297,7 @@
       }
 
       setStatus('Parsing internal data…');
-      const feat = extractFeatureGraphic(html);
+      const feat = await extractFeatureGraphic(html);
       if (!feat) return setStatus('No feature graphic found.','err');
 
       const normalized = normalizeW1024(feat, elKeep.checked);
