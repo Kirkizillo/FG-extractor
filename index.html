@@ -60,142 +60,100 @@
 const IMG_HOST = "play-lh.googleusercontent.com";
 const SIZE_RE = /=w(\d+)-h(\d+)/;
 const FAV_HEIGHTS = new Set([405, 470, 500, 576]); // frequent banner heights
+const SUPER_FAV = new Set(["1024x576","832x470","720x405","1024x500","512x288"]);
 const LS_KEY_PROXY = 'fge_proxy_endpoint';
+const DEBUG = new URLSearchParams(location.search).get('debug') === '1';
 
-// --- Helpers -------------------------------------------------------------
+// --- Small utils ---------------------------------------------------------
 function normalizeW1024(u, keep) {
   if (!u || !u.includes(IMG_HOST)) return u;
   const base = u.split("=")[0];
   return keep ? `${base}=w1024-h576-rw` : `${base}=w1024`;
 }
-
 function extractWH(url) {
   const m = url.match(SIZE_RE);
   if (!m) return null;
   const w = parseInt(m[1], 10), h = parseInt(m[2], 10);
   return { w, h, ratio: h ? w / h : null };
 }
-
 function uniqueInOrder(arr) {
   const seen = new Set();
   const out = [];
   for (const x of arr) if (!seen.has(x)) { seen.add(x); out.push(x); }
   return out;
 }
-
-function getPackageId(input) {
-  const trimmed = input.trim();
-  if (!trimmed) return null;
-  try {
-    const u = new URL(trimmed);
-    if (u.hostname.includes('play.google.com')) {
-      const id = new URLSearchParams(u.search).get('id');
-      return id || null;
-    }
-    return null;
-  } catch {
-    return trimmed;
-  }
+function byBase(urls){
+  const groups = new Map();
+  for (const u of urls){ const base=u.split('=')[0]; if(!groups.has(base)) groups.set(base,[]); groups.get(base).push(u); }
+  return Array.from(groups.entries()).map(([base,urls])=>({base,urls}));
 }
 
-function buildPlayUrl(pkg) {
-  const params = new URLSearchParams({ id: pkg, hl: 'en', gl: 'US' });
-  return `https://play.google.com/store/apps/details?${params.toString()}`;
+// Decode \uXXXX and \/, then HTML entities
+function decodeJSStringEscapes(str){
+  try{
+    const unescapedUnicode = str.replace(/\\u([0-9a-fA-F]{4})/g, (_,h)=>String.fromCharCode(parseInt(h,16)));
+    const slashesFixed = unescapedUnicode.replace(/\\\//g,'/');
+    const ta = document.createElement('textarea');
+    ta.innerHTML = slashesFixed;
+    return ta.value;
+  }catch{ return str; }
 }
 
-// --- Core: extract only from AF_initDataCallback script blobs -----------
-function extractFromInitDataScripts(html) {
-  // Grab only <script> blocks that contain AF_initDataCallback (or structured data blobs)
-  const scripts = [];
-  const scriptRe = /<script[^>]*>([\s\S]*?)<\/script>/gi;
-  let m;
-  while ((m = scriptRe.exec(html)) !== null) {
-    const body = m[1] || '';
-    if (body.includes('AF_initDataCallback')) scripts.push(body);
-  }
-
-  const urls = [];
-  const urlRe = /https:\/\/play-lh\.googleusercontent\.com\/[A-Za-z0-9_\-][^"'<>\s]*/g;
-  for (const s of scripts) {
-    const found = s.match(urlRe) || [];
-    urls.push(...found);
-  }
+// --- Source collectors ---------------------------------------------------
+function getScriptBodies(html){
+  const bodies=[]; const re=/<script[^>]*>([\s\S]*?)<\/script>/gi; let m; while((m=re.exec(html))!==null){ bodies.push(m[1]||''); }
+  return bodies;
+}
+function extractUrlsFromBodies(bodies){
+  const urls=[]; const urlRe=/https:\/\/play-lh\.googleusercontent\.com\/[A-Za-z0-9_\-][^"'<>\s]*/g;
+  for(const raw of bodies){ const dec = decodeJSStringEscapes(raw); const found = dec.match(urlRe) || []; urls.push(...found); }
   return uniqueInOrder(urls);
 }
 
-// Group by base (strip size tokens) to avoid screenshot variants dominance
-function groupByBase(urls) {
-  const groups = new Map();
-  for (const u of urls) {
-    const base = u.split('=')[0];
-    const m = u.match(SIZE_RE);
-    const wh = m ? `${parseInt(m[1],10)}x${parseInt(m[2],10)}` : null;
-    if (!groups.has(base)) groups.set(base, { base, urls: [], tokens: new Set() });
-    const g = groups.get(base);
-    g.urls.push(u);
-    if (wh) g.tokens.add(wh);
-  }
-  return Array.from(groups.values());
-}
-
-function scoreUrl(u) {
+// --- Scoring -------------------------------------------------------------
+function scoreUrl(u){
   const s = extractWH(u);
-  if (!s || !s.ratio) return -Infinity;
-  if (s.w <= s.h) return -Infinity; // must be landscape
-  const dev = Math.abs(s.ratio - (16/9));
-  if (dev > 0.12) return -Infinity; // too far from 16:9
-
-  let score = 0;
-  score += dev <= 0.03 ? 6 : 3;          // closeness to 16:9
-  if (FAV_HEIGHTS.has(s.h)) score += 10; // banner-like heights
-  if (u.includes('-rw')) score += 3;     // typical delivery flag
-  if (s.h === 1080 || s.h === 720 || s.h === 480) score -= 6; // screenshot-ish
-  if (s.h <= 600) score += 2; else score -= 2; // avoid very tall
-  return score;
+  if (!s || !s.ratio || s.w <= s.h) return -1e9;
+  const dev = Math.abs(s.ratio - 16/9);
+  if (dev > 0.12) return -1e9;
+  let sc = 0;
+  sc += dev <= 0.03 ? 8 : 4; // closeness to 16:9
+  if (FAV_HEIGHTS.has(s.h)) sc += 12;
+  const pair = `${s.w}x${s.h}`; if (SUPER_FAV.has(pair)) sc += 6;
+  if (u.includes('-rw')) sc += 3;
+  if ([1080, 720, 480].includes(s.h)) sc -= 8; // screenshots common
+  sc += s.h <= 600 ? 3 : -3;
+  return sc;
 }
+function pickBest(urls){ let best=null,bs=-1e9; for(const u of urls){ const s=scoreUrl(u); if(s>bs){ bs=s; best=u; } } return best; }
 
-function pickFeatureFromGroups(groups) {
-  if (!groups || !groups.length) return null;
-  let best = null; let bestScore = -Infinity;
-  for (const g of groups) {
-    // Score best URL inside this group
-    let bestUrl = null, bestUrlScore = -Infinity;
-    for (const u of g.urls) {
-      const s = scoreUrl(u);
-      if (s > bestUrlScore) { bestUrl = u; bestUrlScore = s; }
-    }
-    if (bestUrl && bestUrlScore > bestScore) { best = bestUrl; bestScore = bestUrlScore; }
-  }
-  if (!best) {
-    // Fallback: first near-16:9 with h<=600
-    for (const g of groups) {
-      for (const u of g.urls) {
-        const s = extractWH(u);
-        if (s && s.w > s.h && s.ratio && s.ratio > 1.6 && s.ratio < 1.95 && s.h <= 600) { return u; }
-      }
-    }
+// --- Core extraction pipeline -------------------------------------------
+function extractFeatureGraphic(html){
+  // 1) Only AF_initDataCallback scripts (most likely source)
+  const onlyInit = getScriptBodies(html).filter(s=>s.includes('AF_initDataCallback'));
+  let urls = extractUrlsFromBodies(onlyInit);
+
+  // 2) If none, try all scripts (decoded) as fallback
+  if (!urls.length){ urls = extractUrlsFromBodies(getScriptBodies(html)); }
+
+  // 3) If still none, decode whole HTML and try once more
+  if (!urls.length){ const dec = decodeJSStringEscapes(html); const all = dec.match(/https:\/\/play-lh\.googleusercontent\.com\/[A-Za-z0-9_\-][^"'<>\s]*/g) || []; urls = uniqueInOrder(all); }
+
+  // 4) Group by base (strip size tokens), pick best inside each group, then pick global best
+  const groups = byBase(urls);
+  let best=null, bestScore=-1e9;
+  for (const g of groups){ const candidate=pickBest(g.urls); if(!candidate) continue; const sc=scoreUrl(candidate); if(sc>bestScore){ best=candidate; bestScore=sc; } }
+
+  if (DEBUG){
+    console.log('[FGE] candidates', urls.slice(0,50));
+    console.log('[FGE] best', best);
   }
   return best;
 }
 
 // --- Proxy persistence ---------------------------------------------------
-function getProxy() {
-  const ls = localStorage.getItem(LS_KEY_PROXY);
-  if (ls) return ls;
-  const p = new URLSearchParams(location.search).get('proxy');
-  if (p) { localStorage.setItem(LS_KEY_PROXY, p); return p; }
-  return null;
-}
-function setProxyInteractive() {
-  const current = getProxy() || '';
-  const val = prompt('Proxy endpoint (must end with ?url=):', current);
-  if (!val) return;
-  try {
-    const u = new URL(val);
-    if (!val.endsWith('=') && !val.endsWith('%3D')) { alert('It should end with ?url='); return; }
-    localStorage.setItem(LS_KEY_PROXY, val);
-  } catch { alert('Invalid URL'); }
-}
+function getProxy(){ const ls=localStorage.getItem(LS_KEY_PROXY); if(ls) return ls; const p=new URLSearchParams(location.search).get('proxy'); if(p){ localStorage.setItem(LS_KEY_PROXY,p); return p;} return null; }
+function setProxyInteractive(){ const cur=getProxy()||''; const val=prompt('Proxy endpoint (must end with ?url=):',cur); if(!val) return; try{ new URL(val); if(!val.endsWith('=') && !val.endsWith('%3D')) return alert('It should end with ?url='); localStorage.setItem(LS_KEY_PROXY,val);}catch{ alert('Invalid URL'); } }
 
 // --- UI wiring -----------------------------------------------------------
 const elInput = document.getElementById('input');
@@ -209,67 +167,35 @@ const elPrev = document.getElementById('preview');
 const elMeta = document.getElementById('meta');
 const elOpen = document.getElementById('openRaw');
 const elProxyBtn = document.getElementById('proxyBtn');
+function setStatus(msg, kind='info'){ const colors={info:'text-slate-400', ok:'text-emerald-400', err:'text-rose-400'}; elStatus.className=`mt-4 text-sm ${colors[kind]||colors.info}`; elStatus.textContent=msg||''; }
 
-function setStatus(msg, kind = 'info') {
-  const colors = { info: 'text-slate-400', ok: 'text-emerald-400', err: 'text-rose-400' };
-  elStatus.className = `mt-4 text-sm ${colors[kind] || colors.info}`;
-  elStatus.textContent = msg || '';
-}
-
-async function extract() {
-  elRes.classList.add('hidden');
-  setStatus('');
-
-  const pkg = getPackageId(elInput.value);
-  if (!pkg) { setStatus('Enter a Play URL or a valid package ID.', 'err'); return; }
-
-  const proxy = getProxy();
-  if (!proxy) { setStatus('Set proxy (gear button) first.', 'err'); return; }
-
-  const playUrl = buildPlayUrl(pkg);
+async function extract(){
+  elRes.classList.add('hidden'); setStatus('');
+  const pkg = (function getPkg(v){ const t=v.trim(); if(!t) return null; try{ const u=new URL(t); if(u.hostname.includes('play.google.com')) return new URLSearchParams(u.search).get('id'); return null; }catch{ return t; } })(elInput.value);
+  if (!pkg) return setStatus('Enter a Play URL or a valid package ID.','err');
+  const proxy = getProxy(); if (!proxy) return setStatus('Set proxy (gear button) first.','err');
+  const playUrl = `https://play.google.com/store/apps/details?` + new URLSearchParams({id:pkg, hl:'en', gl:'US'}).toString();
   const target = proxy.endsWith('=') ? proxy + encodeURIComponent(playUrl) : proxy + playUrl;
 
-  setStatus('Fetching page via proxy…');
-  let html = '';
-  try {
-    const r = await fetch(target, { method: 'GET' });
-    if (!r.ok) throw new Error(`Proxy HTTP ${r.status}`);
-    html = await r.text();
-  } catch (e) {
-    setStatus(`Fetch failed: ${e.message}`, 'err');
-    return;
-  }
+  setStatus('Fetching page via proxy…'); let html='';
+  try{ const r=await fetch(target); if(!r.ok) throw new Error(`Proxy HTTP ${r.status}`); html=await r.text(); }
+  catch(e){ return setStatus(`Fetch failed: ${e.message}`,'err'); }
 
-  setStatus('Scanning internal data blobs…');
-  const urls = extractFromInitDataScripts(html);
-  if (!urls.length) { setStatus('No internal image blobs found.', 'err'); return; }
-
-  const groups = groupByBase(urls);
-  const feat = pickFeatureFromGroups(groups);
-  if (!feat) { setStatus('No feature graphic found.', 'err'); return; }
+  setStatus('Parsing internal data…');
+  const feat = extractFeatureGraphic(html);
+  if (!feat) return setStatus('No feature graphic found.','err');
 
   const normalized = normalizeW1024(feat, elKeep.checked);
-  elOut.value = normalized;
-  elPrev.src = normalized;
-  elOpen.href = normalized;
-
-  const s = extractWH(feat);
-  elMeta.textContent = s ? `Original size tokens: w${s.w}×h${s.h} (~${(s.ratio).toFixed(3)}:1)` : 'Original size tokens: unknown';
-
-  setStatus('Done ✔', 'ok');
-  elRes.classList.remove('hidden');
+  elOut.value = normalized; elPrev.src = normalized; elOpen.href = normalized;
+  const s = extractWH(feat); elMeta.textContent = s ? `Original size tokens: w${s.w}×h${s.h} (~${(s.ratio).toFixed(3)}:1)` : 'Original size tokens: unknown';
+  setStatus('Done ✔','ok'); elRes.classList.remove('hidden');
 }
 
 elGo.addEventListener('click', extract);
-elInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') extract(); });
-elCopy.addEventListener('click', async () => {
-  try { await navigator.clipboard.writeText(elOut.value); elCopy.textContent = 'Copied'; setTimeout(()=> elCopy.textContent = 'Copy URL', 1000); } catch {}
-});
+elInput.addEventListener('keydown', (e)=>{ if(e.key==='Enter') extract(); });
+elCopy.addEventListener('click', async ()=>{ try{ await navigator.clipboard.writeText(elOut.value); elCopy.textContent='Copied'; setTimeout(()=> elCopy.textContent='Copy URL', 1000);} catch{} });
 elProxyBtn.addEventListener('click', setProxyInteractive);
-
-window.addEventListener('load', () => {
-  if (!getProxy()) setStatus('Click the gear to set your proxy endpoint (ends with ?url=).', 'info');
-});
+window.addEventListener('load', ()=>{ if(!getProxy()) setStatus('Click the gear to set your proxy endpoint (ends with ?url=).', 'info'); });
 </script>
 </body>
 </html>
