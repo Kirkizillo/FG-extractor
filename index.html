@@ -1,0 +1,230 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Google Play Feature Graphic Extractor (w1024)</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <meta name="description" content="Paste a Google Play URL or package ID to extract the feature graphic at w1024." />
+  <style>
+    html { scroll-behavior: smooth; }
+    .fade-in { animation: fade 0.4s ease-in-out; }
+    @keyframes fade { from { opacity: 0; transform: translateY(4px);} to { opacity: 1; transform: translateY(0);} }
+    code { background: #0b1220; color: #e2e8f0; padding: .125rem .375rem; border-radius: .375rem; }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen">
+  <div class="max-w-3xl mx-auto px-4 py-10">
+    <header class="mb-8">
+      <h1 class="text-3xl font-bold tracking-tight">Google Play Feature Graphic Extractor <span class="text-slate-400">(w1024)</span></h1>
+      <p class="text-slate-300 mt-2">Paste a Google Play Store URL or a package ID (e.g. <code>com.netease.mmm</code>). This tool fetches the page via a tiny proxy, finds the 16:9 banner (feature graphic), and normalizes the URL to <code>=w1024</code>.</p>
+      <p class="mt-2 text-xs text-slate-400">Note: Browsers block direct cross-origin fetches to Google Play (CORS). Configure the proxy below first.</p>
+    </header>
+
+    <section class="bg-slate-900/50 border border-slate-800 rounded-2xl p-5 shadow-xl">
+      <div class="grid gap-3">
+        <label class="text-sm text-slate-300" for="proxy">Proxy endpoint (HTTPS):</label>
+        <input id="proxy" type="url" placeholder="https://your-worker.example.workers.dev/fetch?url=" class="w-full rounded-xl bg-slate-900 border border-slate-800 px-4 py-3 outline-none focus:ring-2 focus:ring-indigo-500" />
+        <p class="text-xs text-slate-400">This should be a simple pass-through endpoint that returns the raw HTML of a given URL. See Worker snippet in README.</p>
+      </div>
+
+      <div class="grid gap-3 mt-6">
+        <label class="text-sm text-slate-300" for="input">Google Play URL or package ID:</label>
+        <div class="flex gap-2">
+          <input id="input" type="text" placeholder="https://play.google.com/store/apps/details?id=com.netease.mmm or com.netease.mmm" class="flex-1 rounded-xl bg-slate-900 border border-slate-800 px-4 py-3 outline-none focus:ring-2 focus:ring-indigo-500" />
+          <button id="go" class="rounded-xl px-4 py-3 bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-700 transition text-white font-medium">Extract</button>
+        </div>
+        <div class="flex items-center gap-3 mt-1">
+          <label class="flex items-center gap-2 text-sm text-slate-300">
+            <input id="keep169" type="checkbox" class="accent-indigo-500" /> Keep 16:9 height (<code>=w1024-h576-rw</code>)
+          </label>
+        </div>
+      </div>
+
+      <div id="status" class="mt-4 text-sm text-slate-400"></div>
+    </section>
+
+    <section id="result" class="hidden mt-8 fade-in">
+      <div class="bg-slate-900/50 border border-slate-800 rounded-2xl p-5">
+        <h2 class="text-lg font-semibold mb-3">Result</h2>
+        <div class="grid gap-3">
+          <div class="flex gap-2">
+            <input id="outUrl" class="flex-1 rounded-xl bg-slate-900 border border-slate-800 px-3 py-2 text-sm" readonly />
+            <button id="copyUrl" class="rounded-xl px-3 py-2 bg-slate-800 hover:bg-slate-700 text-sm">Copy URL</button>
+          </div>
+          <div class="mt-3">
+            <img id="preview" alt="Feature graphic preview" class="w-full max-w-2xl rounded-xl border border-slate-800" />
+            <div class="mt-2 flex gap-3 text-xs text-slate-400">
+              <span id="meta"></span>
+              <a id="openRaw" target="_blank" rel="noopener" class="underline">Open image in new tab</a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <footer class="mt-12 text-xs text-slate-500">
+      <p>Made for GitHub Pages. No tracking, no storage. All parsing happens client-side; the proxy only relays HTML.</p>
+    </footer>
+  </div>
+
+<script>
+  // --- Utilities ---------------------------------------------------------
+  const IMG_HOST = "play-lh.googleusercontent.com";
+  const SIZE_RE = /=w(\d+)-h(\d+)/;
+
+  function normalizeW1024(u, keep) {
+    if (!u || !u.includes(IMG_HOST)) return u;
+    const base = u.split("=")[0];
+    return keep ? `${base}=w1024-h576-rw` : `${base}=w1024`;
+  }
+
+  function extractWH(url) {
+    const m = url.match(SIZE_RE);
+    if (!m) return null;
+    const w = parseInt(m[1], 10), h = parseInt(m[2], 10);
+    return { w, h, ratio: h ? w / h : null };
+  }
+
+  function looksLikeFeature(u) {
+    const s = extractWH(u);
+    if (!s || !s.ratio) return false;
+    return s.w >= s.h && s.ratio >= 1.63 && s.ratio <= 1.93; // ~16:9
+  }
+
+  function uniqueInOrder(arr) {
+    const seen = new Set();
+    const out = [];
+    for (const x of arr) if (!seen.has(x)) { seen.add(x); out.push(x); }
+    return out;
+  }
+
+  function getPackageId(input) {
+    const trimmed = input.trim();
+    if (!trimmed) return null;
+    try {
+      const u = new URL(trimmed);
+      if (u.hostname.includes('play.google.com')) {
+        const id = new URLSearchParams(u.search).get('id');
+        return id || null;
+      }
+      // if it's a URL but not play, we don't support
+      return null;
+    } catch {
+      // not a URL, treat as raw package id
+      return trimmed;
+    }
+  }
+
+  function buildPlayUrl(pkg) {
+    const params = new URLSearchParams({ id: pkg, hl: 'en', gl: 'US' });
+    return `https://play.google.com/store/apps/details?${params.toString()}`;
+  }
+
+  function extractImageUrlsFromHtml(html) {
+    const urls = [];
+    // 1) from <img ... src/srcset>
+    const imgSrcRegex = /<img[^>]+(src|data-src|srcset)=("|')([^"']+)(\2)/gi;
+    let m;
+    while ((m = imgSrcRegex.exec(html)) !== null) {
+      const val = m[3];
+      if (val.includes(IMG_HOST)) {
+        if (m[1] === 'srcset') {
+          val.split(',').forEach(p => {
+            const u = p.trim().split(' ')[0];
+            if (u.startsWith('https://') && u.includes(IMG_HOST)) urls.push(u);
+          });
+        } else {
+          urls.push(val);
+        }
+      }
+    }
+    // 2) any raw occurrences in inline JSON/script
+    const rawRe = /https:\/\/play-lh\.googleusercontent\.com\/[A-Za-z0-9_\-][^"'<>\s]*/g;
+    const rawMatches = html.match(rawRe) || [];
+    urls.push(...rawMatches);
+
+    return uniqueInOrder(urls);
+  }
+
+  function pickFeatureGraphic(urls) {
+    const candidates = [];
+    urls.forEach((u, i) => {
+      if (looksLikeFeature(u)) candidates.push({ i, hasRW: u.includes('-rw'), u });
+    });
+    if (!candidates.length) return null;
+    candidates.sort((a, b) => a.i - b.i || (b.hasRW - a.hasRW));
+    return candidates[0].u;
+  }
+
+  // --- UI wires ----------------------------------------------------------
+  const elProxy = document.getElementById('proxy');
+  const elInput = document.getElementById('input');
+  const elGo = document.getElementById('go');
+  const elKeep = document.getElementById('keep169');
+  const elStatus = document.getElementById('status');
+  const elRes = document.getElementById('result');
+  const elOut = document.getElementById('outUrl');
+  const elCopy = document.getElementById('copyUrl');
+  const elPrev = document.getElementById('preview');
+  const elMeta = document.getElementById('meta');
+  const elOpen = document.getElementById('openRaw');
+
+  function setStatus(msg, kind = 'info') {
+    const colors = { info: 'text-slate-400', ok: 'text-emerald-400', err: 'text-rose-400' };
+    elStatus.className = `mt-4 text-sm ${colors[kind] || colors.info}`;
+    elStatus.textContent = msg || '';
+  }
+
+  async function extract() {
+    elRes.classList.add('hidden');
+    setStatus('');
+
+    const proxy = elProxy.value.trim();
+    if (!proxy) { setStatus('Please set your proxy endpoint first (see README).', 'err'); return; }
+
+    const pkg = getPackageId(elInput.value);
+    if (!pkg) { setStatus('Enter a Play URL or a valid package ID.', 'err'); return; }
+
+    const playUrl = buildPlayUrl(pkg);
+    const target = proxy.endsWith('=') || proxy.endsWith('%3D') ? proxy + encodeURIComponent(playUrl) : proxy + playUrl;
+
+    setStatus('Fetching page via proxy…');
+    let html = '';
+    try {
+      const r = await fetch(target, { method: 'GET' });
+      if (!r.ok) throw new Error(`Proxy HTTP ${r.status}`);
+      html = await r.text();
+    } catch (e) {
+      setStatus(`Fetch failed: ${e.message}`, 'err');
+      return;
+    }
+
+    setStatus('Parsing images…');
+    const urls = extractImageUrlsFromHtml(html);
+    const feat = pickFeatureGraphic(urls);
+    if (!feat) {
+      setStatus('No 16:9 feature graphic found. The app may not have one.', 'err');
+      return;
+    }
+
+    const normalized = normalizeW1024(feat, elKeep.checked);
+    elOut.value = normalized;
+    elPrev.src = normalized;
+    elOpen.href = normalized;
+
+    const s = extractWH(feat);
+    elMeta.textContent = s ? `Original size tokens: w${s.w}×h${s.h} (~${(s.ratio).toFixed(3)}:1)` : 'Original size tokens: unknown';
+
+    setStatus('Done ✔', 'ok');
+    elRes.classList.remove('hidden');
+  }
+
+  elGo.addEventListener('click', extract);
+  elInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') extract(); });
+  elCopy.addEventListener('click', async () => {
+    try { await navigator.clipboard.writeText(elOut.value); elCopy.textContent = 'Copied'; setTimeout(()=> elCopy.textContent = 'Copy URL', 1000); } catch {}
+  });
+</script>
+</body>
+</html>
