@@ -181,37 +181,27 @@ const BADGE_RE = /(badge|rating|contentrating|age|pegi|esrb|usk|parental|family|
 
   // Filtra basura (sin exigir todavía =w-h)
   urls = urls.filter(u => !isJunk(u));
+  if (!urls.length) return null;
 
-  // Agrupa por base
-  const groupsMap = new Map();
-  for (const u of urls){
-    const base = u.split('=')[0];
-    if (!groupsMap.has(base)) groupsMap.set(base, new Set());
-    groupsMap.get(base).add(u);
-  }
+  // Agrupa por base y haz PROBE en paralelo (con límite suave de 40 bases)
+  const bases = Array.from(new Set(urls.map(u => u.split('=')[0]))).slice(0, 40);
+  const probeResults = await Promise.all(bases.map(b => probeAspect(b, 512, 1800)));
+  const validBases = bases
+    .map((base, i) => ({ base, probe: probeResults[i] }))
+    .filter(x => x.probe && x.probe.ok);
 
-  // Candidatos ordenados por heurística (bases primero por “pinta”)
-  const bases = Array.from(groupsMap.keys());
-
-  // 🔎 PROBE: valida que el base sea realmente apaisado ~16:9
-  const validBases = [];
-  for (const base of bases) {
-    const probe = await probeAspect(base, 512);
-    if (probe.ok) validBases.push({ base, probe });
-  }
-
-  // Si no hay bases válidas, aborta
   if (!validBases.length) return null;
 
-  // Para cada base válida, usa sus variantes de tamaño reales o sintetiza típicas
+  // Construye candidatos: tamaños reales si existen, si no sintetiza
+  const groupsMap = new Map();
+  for (const u of urls){ const base = u.split('=')[0]; if (!groupsMap.has(base)) groupsMap.set(base, new Set()); groupsMap.get(base).add(u); }
+
   const candidateUrls = [];
   for (const { base } of validBases) {
-    const list = Array.from(groupsMap.get(base));
+    const list = Array.from(groupsMap.get(base) || []);
     const hasSized = list.some(x => SIZE_RE.test(x));
-    if (hasSized) {
-      candidateUrls.push(...list);
-    } else {
-      // sintetiza solo si el base pasó el probe
+    if (hasSized) candidateUrls.push(...list);
+    else {
       candidateUrls.push(
         `${base}=w1024-h576-rw`, `${base}=w1024-h576`,
         `${base}=w832-h470-rw`,  `${base}=w832-h470`,
@@ -221,7 +211,7 @@ const BADGE_RE = /(badge|rating|contentrating|age|pegi|esrb|usk|parental|family|
     }
   }
 
-  // Limpieza final, rango “banner-ish” y dedup
+  // Rango banner-ish y dedup
   const cleanCandidates = uniqueInOrder(candidateUrls).filter(u => {
     const m = u.match(SIZE_RE); if (!m) return false;
     const w = +m[1], h = +m[2];
@@ -229,6 +219,7 @@ const BADGE_RE = /(badge|rating|contentrating|age|pegi|esrb|usk|parental|family|
     if (h < 300 || h > 700) return false;
     return true;
   });
+  if (!cleanCandidates.length) return null;
 
   // Score por grupos y elige el mejor global
   const groups = byBase(cleanCandidates);
@@ -241,6 +232,7 @@ const BADGE_RE = /(badge|rating|contentrating|age|pegi|esrb|usk|parental|family|
   }
   return best;
 }
+
 
   // --- Proxy persistence -------------------------------------------------
   function getProxy(){
@@ -297,7 +289,7 @@ const BADGE_RE = /(badge|rating|contentrating|age|pegi|esrb|usk|parental|family|
       }
 
       setStatus('Parsing internal data…');
-      const feat = await extractFeatureGraphic(html);
+      const feat = await extractFeatureGraphic(html);   // 👈 importante
       if (!feat) return setStatus('No feature graphic found.','err');
 
       const normalized = normalizeW1024(feat, elKeep.checked);
