@@ -20,9 +20,10 @@
     <section class="bg-slate-900/50 border border-slate-800 rounded-2xl p-5 shadow-xl">
       <div class="grid gap-3 mt-6">
         <label class="text-sm text-slate-300" for="input">Gplay URL or package ID:</label>
-        <div class="flex gap-2">
+        <div class="flex gap-2 items-center">
           <input id="input" type="text" placeholder="https://play.google.com/store/apps/details?id=com.example or com.example" class="flex-1 rounded-xl bg-slate-900 border border-slate-800 px-4 py-3 outline-none focus:ring-2 focus:ring-indigo-500" />
           <button id="go" class="rounded-xl px-4 py-3 bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-700 transition text-white font-medium">Extract</button>
+          <button id="proxyBtn" class="rounded-xl px-3 py-3 bg-slate-800 hover:bg-slate-700 transition text-slate-200" title="Set proxy (ends with ?url=)">⚙️</button>
         </div>
         <div class="flex items-center gap-3 mt-1">
           <label class="flex items-center gap-2 text-sm text-slate-300">
@@ -58,7 +59,8 @@
 // --- Constants -----------------------------------------------------------
 const IMG_HOST = "play-lh.googleusercontent.com";
 const SIZE_RE = /=w(\d+)-h(\d+)/;
-const FAV_HEIGHTS = new Set([405, 470, 576]); // heights commonly used by feature graphics
+const FAV_HEIGHTS = new Set([405, 470, 576]); // banner-ish heights
+const LS_KEY_PROXY = 'fge_proxy_endpoint';
 
 // --- Helpers -------------------------------------------------------------
 function normalizeW1024(u, keep) {
@@ -101,16 +103,13 @@ function buildPlayUrl(pkg) {
   return `https://play.google.com/store/apps/details?${params.toString()}`;
 }
 
-// Parse ALL occurrences, including inline JSON blobs (feature graphic often lives there)
+// Parse all occurrences, including inline JSON blobs
 function extractImageUrlsFromHtml(html) {
   const urls = [];
-
-  // 1) Any raw occurrences in the entire HTML (scripts + markup)
   const rawRe = /https:\/\/play-lh\.googleusercontent\.com\/[A-Za-z0-9_\-][^"'<>\s]*/g;
   const rawMatches = html.match(rawRe) || [];
   urls.push(...rawMatches);
 
-  // 2) Also consider <img ... src/srcset> to keep order diversity (not strictly necessary, but cheap)
   const imgSrcRegex = /<img[^>]+(src|data-src|srcset)=("|')([^"']+)(\2)/gi;
   let m;
   while ((m = imgSrcRegex.exec(html)) !== null) {
@@ -126,54 +125,34 @@ function extractImageUrlsFromHtml(html) {
       }
     }
   }
-
   return uniqueInOrder(urls);
 }
 
-// --- Scoring: target the hidden feature graphic rather than visible gallery ---
+// --- Scoring to target feature graphic ----------------------------------
 function scoreCandidate(u) {
   const s = extractWH(u);
   if (!s || !s.ratio) return -Infinity;
-
-  // Must be landscape and close to 16:9
-  if (s.w <= s.h) return -Infinity;
+  if (s.w <= s.h) return -Infinity; // must be landscape
   const dev = Math.abs(s.ratio - (16/9));
   if (dev > 0.12) return -Infinity; // too far from 16:9
 
   let score = 0;
-
-  // Closer to 16:9 is better
-  if (dev <= 0.03) score += 6; else score += 3;
-
-  // Strongly prefer known banner heights
-  if (FAV_HEIGHTS.has(s.h)) score += 10;
-
-  // Prefer -rw (common in feature graphics delivery)
-  if (u.includes('-rw')) score += 3;
-
-  // Avoid typical screenshot heights
-  if (s.h === 1080 || s.h === 720 || s.h === 480) score -= 6;
-
-  // Prefer "banner-like" scale (not too tall). If height <= 600, bonus; else slight penalty
-  if (s.h <= 600) score += 2; else score -= 2;
-
+  score += dev <= 0.03 ? 6 : 3; // closeness to 16:9
+  if (FAV_HEIGHTS.has(s.h)) score += 10; // banner-like heights
+  if (u.includes('-rw')) score += 3; // typical delivery flag
+  if (s.h === 1080 || s.h === 720 || s.h === 480) score -= 6; // screenshot-ish
+  if (s.h <= 600) score += 2; else score -= 2; // avoid very tall
   return score;
 }
 
 function pickFeatureGraphic(urls) {
-  // Consider only play-lh images
   const candidates = urls.filter(u => u.includes(IMG_HOST));
   if (!candidates.length) return null;
-
-  // Score all, keep the highest scoring
-  let best = null;
-  let bestScore = -Infinity;
+  let best = null, bestScore = -Infinity;
   for (const u of candidates) {
     const s = scoreCandidate(u);
     if (s > bestScore) { best = u; bestScore = s; }
   }
-
-  // If nothing scored (very unusual), fall back to first near-16:9 under 600px height
   if (!best) {
     for (const u of candidates) {
       const s = extractWH(u);
@@ -181,6 +160,35 @@ function pickFeatureGraphic(urls) {
     }
   }
   return best;
+}
+
+// --- Proxy persistence ---------------------------------------------------
+function getProxy() {
+  // Priority: localStorage → URL ?proxy= → null
+  const ls = localStorage.getItem(LS_KEY_PROXY);
+  if (ls) return ls;
+  const p = new URLSearchParams(location.search).get('proxy');
+  if (p) {
+    localStorage.setItem(LS_KEY_PROXY, p);
+    return p;
+  }
+  return null;
+}
+
+function setProxyInteractive() {
+  const current = getProxy() || '';
+  const val = prompt('Proxy endpoint (must end with ?url=):', current);
+  if (!val) return;
+  try {
+    const u = new URL(val);
+    if (!val.endsWith('=') && !val.endsWith('%3D')) {
+      alert('It should end with ?url=');
+      return;
+    }
+    localStorage.setItem(LS_KEY_PROXY, val);
+  } catch {
+    alert('Invalid URL');
+  }
 }
 
 // --- UI wiring -----------------------------------------------------------
@@ -194,6 +202,7 @@ const elCopy = document.getElementById('copyUrl');
 const elPrev = document.getElementById('preview');
 const elMeta = document.getElementById('meta');
 const elOpen = document.getElementById('openRaw');
+const elProxyBtn = document.getElementById('proxyBtn');
 
 function setStatus(msg, kind = 'info') {
   const colors = { info: 'text-slate-400', ok: 'text-emerald-400', err: 'text-rose-400' };
@@ -208,8 +217,8 @@ async function extract() {
   const pkg = getPackageId(elInput.value);
   if (!pkg) { setStatus('Enter a Play URL or a valid package ID.', 'err'); return; }
 
-  const proxy = prompt("Enter proxy endpoint (ending with ?url=)");
-  if (!proxy) { setStatus('Proxy endpoint required.', 'err'); return; }
+  const proxy = getProxy();
+  if (!proxy) { setStatus('Set proxy (gear button) first.', 'err'); return; }
 
   const playUrl = buildPlayUrl(pkg);
   const target = proxy.endsWith('=') ? proxy + encodeURIComponent(playUrl) : proxy + playUrl;
@@ -246,6 +255,12 @@ elGo.addEventListener('click', extract);
 elInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') extract(); });
 elCopy.addEventListener('click', async () => {
   try { await navigator.clipboard.writeText(elOut.value); elCopy.textContent = 'Copied'; setTimeout(()=> elCopy.textContent = 'Copy URL', 1000); } catch {}
+});
+elProxyBtn.addEventListener('click', setProxyInteractive);
+
+// One-time hint if proxy missing (no noisy prompts)
+window.addEventListener('load', () => {
+  if (!getProxy()) setStatus('Click the gear to set your proxy endpoint (ends with ?url=).', 'info');
 });
 </script>
 </body>
