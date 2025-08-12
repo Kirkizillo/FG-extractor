@@ -65,9 +65,8 @@
   const FAV_HEIGHTS = new Set([405, 470, 500, 576]);
   const SUPER_FAV = new Set(["1024x576","832x470","720x405","1024x500","512x288"]);
   const LS_KEY_PROXY = 'fge_proxy_endpoint';
-
-// Excluir badges/iconos de rating por palabras clave en la ruta
-const BADGE_RE = /(badge|rating|contentrating|age|pegi|esrb|usk|parental|family|editor.?choice)/i;
+  const BADGE_RE = /(badge|rating|contentrating|age|pegi|esrb|usk|parental|family|editor.?choice)/i;
+  const DEBUG = new URLSearchParams(location.search).get('debug') === '1';
 
   // --- Small utils -------------------------------------------------------
   function normalizeW1024(u, keep) {
@@ -120,11 +119,11 @@ const BADGE_RE = /(badge|rating|contentrating|age|pegi|esrb|usk|parental|family|
 
   // --- Filters -----------------------------------------------------------
   function isJunk(u){
-  if (!u.includes(IMG_HOST)) return true;                 // solo play-lh
-  if (u.includes('/a-/') || u.includes('/a/')) return true; // avatares
-  if (/(^|[?&])mo(=|$)|\b=mo\b/.test(u)) return true;     // sufijo de avatar mini
-  if (BADGE_RE.test(u)) return true;                      // badges / ratings
-  return false;                                           // NO exigimos aún =w-h
+    if (!u.includes(IMG_HOST)) return true;                  // solo play-lh
+    if (u.includes('/a-/') || u.includes('/a/')) return true; // avatares
+    if (/(^|[?&])mo(=|$)|\b=mo\b/.test(u)) return true;      // sufijo avatar mini
+    if (BADGE_RE.test(u)) return true;                       // badges / ratings
+    return false;                                            // NO exigimos aún =w-h
   }
   function passesSizeRange(u){
     const m = u.match(SIZE_RE);
@@ -152,6 +151,26 @@ const BADGE_RE = /(badge|rating|contentrating|age|pegi|esrb|usk|parental|family|
   }
   function pickBest(urls){ let best=null,bs=-1e9; for(const u of urls){ const s=scoreUrl(u); if(s>bs){ bs=s; best=u; } } return best; }
 
+  // --- Probe real aspect (with timeout) ---------------------------------
+  function probeAspect(base, testW = 512, timeoutMs = 1800) {
+    return new Promise((resolve) => {
+      const img = new Image();
+      let settled = false;
+      const finish = (res) => { if (settled) return; settled = true; resolve(res); };
+      const timer = setTimeout(() => finish({ ok: false, w: 0, h: 0, ratio: 0, timeout: true }), timeoutMs);
+      img.crossOrigin = "anonymous";
+      img.onload = () => {
+        clearTimeout(timer);
+        const w = img.naturalWidth || img.width;
+        const h = img.naturalHeight || img.height;
+        const ratio = h ? w / h : 0;
+        finish({ ok: w > h && ratio > 1.55 && ratio < 1.9, w, h, ratio });
+      };
+      img.onerror = () => { clearTimeout(timer); finish({ ok: false, w: 0, h: 0, ratio: 0, error: true }); };
+      img.src = `${base}=w${testW}`;
+    });
+  }
+
   // --- Synthesize size variants for base-only URLs ----------------------
   function synthesizeBannerVariants(base){
     const variants = [
@@ -165,74 +184,64 @@ const BADGE_RE = /(badge|rating|contentrating|age|pegi|esrb|usk|parental|family|
 
   // --- Core extraction pipeline -----------------------------------------
   async function extractFeatureGraphic(html){
-  // 1) Solo scripts AF_initDataCallback
-  const onlyInit = getScriptBodies(html).filter(s=>s.includes('AF_initDataCallback'));
-  let urls = extractUrlsFromBodies(onlyInit);
+    // 1) Solo scripts AF_initDataCallback
+    const onlyInit = getScriptBodies(html).filter(s=>s.includes('AF_initDataCallback'));
+    let urls = extractUrlsFromBodies(onlyInit);
 
-  // 2) Fallback: todos los scripts
-  if (!urls.length){ urls = extractUrlsFromBodies(getScriptBodies(html)); }
+    // 2) Fallback: todos los scripts
+    if (!urls.length){ urls = extractUrlsFromBodies(getScriptBodies(html)); }
 
-  // 3) Fallback: HTML decodificado completo
-  if (!urls.length){
-    const dec = decodeJSStringEscapes(html);
-    const all = dec.match(URL_RE) || [];
-    urls = uniqueInOrder(all);
-  }
-
-  // Filtra basura (sin exigir todavía =w-h)
-  urls = urls.filter(u => !isJunk(u));
-  if (!urls.length) return null;
-
-  // Agrupa por base y haz PROBE en paralelo (con límite suave de 40 bases)
-  const bases = Array.from(new Set(urls.map(u => u.split('=')[0]))).slice(0, 40);
-  const probeResults = await Promise.all(bases.map(b => probeAspect(b, 512, 1800)));
-  const validBases = bases
-    .map((base, i) => ({ base, probe: probeResults[i] }))
-    .filter(x => x.probe && x.probe.ok);
-
-  if (!validBases.length) return null;
-
-  // Construye candidatos: tamaños reales si existen, si no sintetiza
-  const groupsMap = new Map();
-  for (const u of urls){ const base = u.split('=')[0]; if (!groupsMap.has(base)) groupsMap.set(base, new Set()); groupsMap.get(base).add(u); }
-
-  const candidateUrls = [];
-  for (const { base } of validBases) {
-    const list = Array.from(groupsMap.get(base) || []);
-    const hasSized = list.some(x => SIZE_RE.test(x));
-    if (hasSized) candidateUrls.push(...list);
-    else {
-      candidateUrls.push(
-        `${base}=w1024-h576-rw`, `${base}=w1024-h576`,
-        `${base}=w832-h470-rw`,  `${base}=w832-h470`,
-        `${base}=w720-h405-rw`,  `${base}=w720-h405`,
-        `${base}=w1024-h500-rw`, `${base}=w1024-h500`,
-      );
+    // 3) Fallback: HTML decodificado completo
+    if (!urls.length){
+      const dec = decodeJSStringEscapes(html);
+      const all = dec.match(URL_RE) || [];
+      urls = uniqueInOrder(all);
     }
+
+    // Filtra basura
+    urls = urls.filter(u => !isJunk(u));
+    if (!urls.length) return null;
+
+    // Bases únicas (limita a 40 por seguridad)
+    const bases = Array.from(new Set(urls.map(u => u.split('=')[0]))).slice(0, 40);
+
+    // PROBE en paralelo
+    const probeResults = await Promise.all(bases.map(b => probeAspect(b, 512, 1800)));
+    const validBases = bases
+      .map((base, i) => ({ base, probe: probeResults[i] }))
+      .filter(x => x.probe && x.probe.ok);
+
+    if (!validBases.length) return null;
+
+    // Mapa base -> urls originales vistas
+    const groupsMap = new Map();
+    for (const u of urls){ const base = u.split('=')[0]; if (!groupsMap.has(base)) groupsMap.set(base, new Set()); groupsMap.get(base).add(u); }
+
+    // Construye candidatos
+    const candidateUrls = [];
+    for (const { base } of validBases) {
+      const list = Array.from(groupsMap.get(base) || []);
+      const hasSized = list.some(x => SIZE_RE.test(x));
+      if (hasSized) candidateUrls.push(...list);
+      else candidateUrls.push(...synthesizeBannerVariants(base));
+    }
+
+    // Rango banner-ish y dedup
+    const cleanCandidates = uniqueInOrder(candidateUrls).filter(passesSizeRange);
+    if (!cleanCandidates.length) return null;
+
+    // Score por grupos y elige el mejor global
+    const groups = byBase(cleanCandidates);
+    let best=null, bestScore=-1e9;
+    for (const g of groups){
+      const candidate = pickBest(g.urls);
+      if (!candidate) continue;
+      const sc = scoreUrl(candidate);
+      if (sc > bestScore){ best = candidate; bestScore = sc; }
+    }
+    if (DEBUG) { console.log('[FGE] best:', best); }
+    return best;
   }
-
-  // Rango banner-ish y dedup
-  const cleanCandidates = uniqueInOrder(candidateUrls).filter(u => {
-    const m = u.match(SIZE_RE); if (!m) return false;
-    const w = +m[1], h = +m[2];
-    if (w < 600 || w > 1400) return false;
-    if (h < 300 || h > 700) return false;
-    return true;
-  });
-  if (!cleanCandidates.length) return null;
-
-  // Score por grupos y elige el mejor global
-  const groups = byBase(cleanCandidates);
-  let best=null, bestScore=-1e9;
-  for (const g of groups){
-    const candidate = pickBest(g.urls);
-    if (!candidate) continue;
-    const sc = scoreUrl(candidate);
-    if (sc > bestScore){ best = candidate; bestScore = sc; }
-  }
-  return best;
-}
-
 
   // --- Proxy persistence -------------------------------------------------
   function getProxy(){
@@ -289,14 +298,19 @@ const BADGE_RE = /(badge|rating|contentrating|age|pegi|esrb|usk|parental|family|
       }
 
       setStatus('Parsing internal data…');
-      const feat = await extractFeatureGraphic(html);   // 👈 importante
-      if (!feat) return setStatus('No feature graphic found.','err');
+      try {
+        const feat = await extractFeatureGraphic(html);
+        if (!feat) return setStatus('No feature graphic found.','err');
 
-      const normalized = normalizeW1024(feat, elKeep.checked);
-      elOut.value = normalized; elPrev.src = normalized; elOpen.href = normalized;
-      const s = extractWH(feat);
-      elMeta.textContent = s ? `Original size tokens: w${s.w}×h${s.h} (~${(s.ratio).toFixed(3)}:1)` : 'Original size tokens: unknown';
-      setStatus('Done ✔','ok'); elRes.classList.remove('hidden');
+        const normalized = normalizeW1024(feat, elKeep.checked);
+        elOut.value = normalized; elPrev.src = normalized; elOpen.href = normalized;
+        const s = extractWH(feat);
+        elMeta.textContent = s ? `Original size tokens: w${s.w}×h${s.h} (~${(s.ratio).toFixed(3)}:1)` : 'Original size tokens: unknown';
+        setStatus('Done ✔','ok'); elRes.classList.remove('hidden');
+      } catch (err) {
+        console.error('[FGE] parsing error:', err);
+        setStatus('Parsing failed. Open console (F12) for details.','err');
+      }
     }
 
     async function copy(){
