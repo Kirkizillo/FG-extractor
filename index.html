@@ -59,7 +59,7 @@
 // --- Constants -----------------------------------------------------------
 const IMG_HOST = "play-lh.googleusercontent.com";
 const SIZE_RE = /=w(\d+)-h(\d+)/;
-const FAV_HEIGHTS = new Set([405, 470, 500, 576]); // include 500 for 1024x500 style
+const FAV_HEIGHTS = new Set([405, 470, 500, 576]); // frequent banner heights
 const LS_KEY_PROXY = 'fge_proxy_endpoint';
 
 // --- Helpers -------------------------------------------------------------
@@ -103,96 +103,87 @@ function buildPlayUrl(pkg) {
   return `https://play.google.com/store/apps/details?${params.toString()}`;
 }
 
-// Parse ALL occurrences, then group by base (strip size tokens)
-function extractImageUrlsFromHtml(html) {
-  const urls = [];
-  const rawRe = /https:\/\/play-lh\.googleusercontent\.com\/[A-Za-z0-9_\-][^"'<>\s]*/g;
-  const rawMatches = html.match(rawRe) || [];
-  urls.push(...rawMatches);
-
-  const imgSrcRegex = /<img[^>]+(src|data-src|srcset)=("|')([^"']+)(\2)/gi;
+// --- Core: extract only from AF_initDataCallback script blobs -----------
+function extractFromInitDataScripts(html) {
+  // Grab only <script> blocks that contain AF_initDataCallback (or structured data blobs)
+  const scripts = [];
+  const scriptRe = /<script[^>]*>([\s\S]*?)<\/script>/gi;
   let m;
-  while ((m = imgSrcRegex.exec(html)) !== null) {
-    const val = m[3];
-    if (val.includes(IMG_HOST)) {
-      if (m[1] === 'srcset') {
-        val.split(',').forEach(p => {
-          const u = p.trim().split(' ')[0];
-          if (u.startsWith('https://') && u.includes(IMG_HOST)) urls.push(u);
-        });
-      } else {
-        urls.push(val);
-      }
-    }
+  while ((m = scriptRe.exec(html)) !== null) {
+    const body = m[1] || '';
+    if (body.includes('AF_initDataCallback')) scripts.push(body);
   }
-  const uniq = uniqueInOrder(urls);
 
+  const urls = [];
+  const urlRe = /https:\/\/play-lh\.googleusercontent\.com\/[A-Za-z0-9_\-][^"'<>\s]*/g;
+  for (const s of scripts) {
+    const found = s.match(urlRe) || [];
+    urls.push(...found);
+  }
+  return uniqueInOrder(urls);
+}
+
+// Group by base (strip size tokens) to avoid screenshot variants dominance
+function groupByBase(urls) {
   const groups = new Map();
-  for (const u of uniq) {
+  for (const u of urls) {
     const base = u.split('=')[0];
-    const tok = SIZE_RE.exec(u);
-    const wh = tok ? { w: parseInt(tok[1], 10), h: parseInt(tok[2], 10) } : null;
+    const m = u.match(SIZE_RE);
+    const wh = m ? `${parseInt(m[1],10)}x${parseInt(m[2],10)}` : null;
     if (!groups.has(base)) groups.set(base, { base, urls: [], tokens: new Set() });
     const g = groups.get(base);
     g.urls.push(u);
-    if (wh) g.tokens.add(`${wh.w}x${wh.h}`);
+    if (wh) g.tokens.add(wh);
   }
   return Array.from(groups.values());
 }
 
-// Scoring at GROUP level to avoid picking a random screenshot variant
-function pickFeatureGraphic(groups) {
+function scoreUrl(u) {
+  const s = extractWH(u);
+  if (!s || !s.ratio) return -Infinity;
+  if (s.w <= s.h) return -Infinity; // must be landscape
+  const dev = Math.abs(s.ratio - (16/9));
+  if (dev > 0.12) return -Infinity; // too far from 16:9
+
+  let score = 0;
+  score += dev <= 0.03 ? 6 : 3;          // closeness to 16:9
+  if (FAV_HEIGHTS.has(s.h)) score += 10; // banner-like heights
+  if (u.includes('-rw')) score += 3;     // typical delivery flag
+  if (s.h === 1080 || s.h === 720 || s.h === 480) score -= 6; // screenshot-ish
+  if (s.h <= 600) score += 2; else score -= 2; // avoid very tall
+  return score;
+}
+
+function pickFeatureFromGroups(groups) {
   if (!groups || !groups.length) return null;
-
-  function scoreGroup(g) {
-    let bestUrl = null;
-    let bestUrlScore = -Infinity;
-    for (const u of g.urls) {
-      const s = extractWH(u);
-      if (!s || !s.ratio || s.w <= s.h) continue;
-      const dev = Math.abs(s.ratio - (16/9));
-      if (dev > 0.12) continue;
-      let score = 0;
-      score += dev <= 0.03 ? 6 : 3;
-      if (u.includes('-rw')) score += 3;
-      if (FAV_HEIGHTS.has(s.h)) score += 10;
-      if (s.h === 1080 || s.h === 720 || s.h === 480) score -= 6;
-      if (s.h <= 600) score += 2; else score -= 2;
-      if (score > bestUrlScore) { bestUrlScore = score; bestUrl = u; }
-    }
-    const hasFavToken = Array.from(g.tokens).some(t => {
-      const [w,h] = t.split('x').map(n=>parseInt(n,10));
-      return FAV_HEIGHTS.has(h);
-    });
-    if (hasFavToken) bestUrlScore += 4;
-    return { url: bestUrl, score: bestUrlScore };
-  }
-
-  let best = null, bestScore = -Infinity;
+  let best = null; let bestScore = -Infinity;
   for (const g of groups) {
-    const { url, score } = scoreGroup(g);
-    if (url && score > bestScore) { best = url; bestScore = score; }
+    // Score best URL inside this group
+    let bestUrl = null, bestUrlScore = -Infinity;
+    for (const u of g.urls) {
+      const s = scoreUrl(u);
+      if (s > bestUrlScore) { bestUrl = u; bestUrlScore = s; }
+    }
+    if (bestUrl && bestUrlScore > bestScore) { best = bestUrl; bestScore = bestUrlScore; }
   }
-
   if (!best) {
+    // Fallback: first near-16:9 with h<=600
     for (const g of groups) {
       for (const u of g.urls) {
         const s = extractWH(u);
-        if (s && s.w > s.h && s.ratio > 1.6 && s.ratio < 1.95 && s.h <= 600) { best = u; break; }
+        if (s && s.w > s.h && s.ratio && s.ratio > 1.6 && s.ratio < 1.95 && s.h <= 600) { return u; }
       }
-      if (best) break;
     }
   }
   return best;
 }
 
 // --- Proxy persistence ---------------------------------------------------
-const LS_KEY = 'fge_proxy_endpoint';
 function getProxy() {
-  const ls = localStorage.getItem(LS_KEY);
+  const ls = localStorage.getItem(LS_KEY_PROXY);
   if (ls) return ls;
   const p = new URLSearchParams(location.search).get('proxy');
-  if (p) { localStorage.setItem(LS_KEY, p); return p; }
+  if (p) { localStorage.setItem(LS_KEY_PROXY, p); return p; }
   return null;
 }
 function setProxyInteractive() {
@@ -202,7 +193,7 @@ function setProxyInteractive() {
   try {
     const u = new URL(val);
     if (!val.endsWith('=') && !val.endsWith('%3D')) { alert('It should end with ?url='); return; }
-    localStorage.setItem(LS_KEY, val);
+    localStorage.setItem(LS_KEY_PROXY, val);
   } catch { alert('Invalid URL'); }
 }
 
@@ -249,9 +240,12 @@ async function extract() {
     return;
   }
 
-  setStatus('Parsing images…');
-  const groups = extractImageUrlsFromHtml(html);
-  const feat = pickFeatureGraphic(groups);
+  setStatus('Scanning internal data blobs…');
+  const urls = extractFromInitDataScripts(html);
+  if (!urls.length) { setStatus('No internal image blobs found.', 'err'); return; }
+
+  const groups = groupByBase(urls);
+  const feat = pickFeatureFromGroups(groups);
   if (!feat) { setStatus('No feature graphic found.', 'err'); return; }
 
   const normalized = normalizeW1024(feat, elKeep.checked);
