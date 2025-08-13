@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Google Play Feature Graphic Extractor</title>
+    <title>Google Play Feature Graphic Extractor - Optimizado</title>
     <style>
         * {
             margin: 0;
@@ -26,7 +26,7 @@
             backdrop-filter: blur(10px);
             border-radius: 20px;
             padding: 40px;
-            max-width: 800px;
+            max-width: 1000px;
             width: 100%;
             box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
             border: 1px solid rgba(255, 255, 255, 0.2);
@@ -49,8 +49,25 @@
             font-size: 1.1em;
         }
 
-        .input-group {
-            margin-bottom: 25px;
+        .quick-tools {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .main-input {
+            background: rgba(246, 246, 246, 0.8);
+            padding: 25px;
+            border-radius: 15px;
+            border-left: 5px solid #667eea;
+        }
+
+        .quick-actions {
+            background: rgba(246, 246, 246, 0.8);
+            padding: 25px;
+            border-radius: 15px;
+            border-left: 5px solid #00b894;
         }
 
         label {
@@ -60,13 +77,14 @@
             font-weight: 600;
         }
 
-        input[type="text"], input[type="url"] {
+        input[type="text"] {
             width: 100%;
             padding: 15px;
             border: 2px solid #ddd;
             border-radius: 10px;
             font-size: 16px;
             transition: all 0.3s ease;
+            margin-bottom: 15px;
         }
 
         input:focus {
@@ -75,21 +93,15 @@
             box-shadow: 0 0 10px rgba(102, 126, 234, 0.2);
         }
 
-        .button-group {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 15px;
-            margin-bottom: 30px;
-        }
-
         button {
-            padding: 15px 25px;
+            padding: 12px 20px;
             border: none;
-            border-radius: 10px;
-            font-size: 16px;
+            border-radius: 8px;
+            font-size: 14px;
             font-weight: 600;
             cursor: pointer;
             transition: all 0.3s ease;
+            margin: 5px;
             text-transform: uppercase;
             letter-spacing: 0.5px;
         }
@@ -99,98 +111,88 @@
             color: white;
         }
 
+        .btn-success {
+            background: linear-gradient(45deg, #00b894, #00cec9);
+            color: white;
+        }
+
         .btn-secondary {
             background: linear-gradient(45deg, #ffeaa7, #fab1a0);
             color: #333;
         }
 
+        .btn-small {
+            padding: 8px 15px;
+            font-size: 12px;
+            margin: 2px;
+        }
+
         button:hover {
             transform: translateY(-2px);
-            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
         }
 
-        button:disabled {
-            opacity: 0.6;
-            cursor: not-allowed;
-            transform: none;
+        .progress-bar {
+            width: 100%;
+            height: 6px;
+            background: #eee;
+            border-radius: 3px;
+            overflow: hidden;
+            margin: 15px 0;
         }
 
-        .results {
-            margin-top: 30px;
-            padding: 25px;
-            background: rgba(246, 246, 246, 0.8);
-            border-radius: 15px;
-            border-left: 5px solid #667eea;
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            width: 0%;
+            transition: width 0.3s ease;
         }
 
-        .result-item {
-            margin-bottom: 20px;
-            padding: 15px;
+        .result-card {
             background: white;
-            border-radius: 10px;
-            border: 1px solid #eee;
+            border-radius: 15px;
+            padding: 20px;
+            margin: 15px 0;
+            border: 2px solid #eee;
             transition: all 0.3s ease;
-        }
-
-        .result-item:hover {
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
-            transform: translateY(-2px);
-        }
-
-        .method-tag {
-            display: inline-block;
-            padding: 4px 12px;
-            background: #667eea;
-            color: white;
-            border-radius: 20px;
-            font-size: 12px;
-            font-weight: bold;
-            margin-bottom: 10px;
-        }
-
-        .confidence {
-            float: right;
-            padding: 4px 12px;
-            border-radius: 20px;
-            font-size: 12px;
-            font-weight: bold;
-        }
-
-        .confidence.high { background: #00b894; color: white; }
-        .confidence.medium { background: #fdcb6e; color: #333; }
-        .confidence.low { background: #e17055; color: white; }
-
-        .url-container {
-            background: #f8f9fa;
-            padding: 10px;
-            border-radius: 8px;
-            margin: 10px 0;
-            font-family: 'Courier New', monospace;
-            word-break: break-all;
             position: relative;
         }
 
-        .copy-btn {
-            position: absolute;
-            right: 10px;
-            top: 50%;
-            transform: translateY(-50%);
-            background: #667eea;
-            color: white;
-            border: none;
-            padding: 5px 10px;
-            border-radius: 5px;
-            cursor: pointer;
-            font-size: 12px;
+        .result-card.winner {
+            border-color: #00b894;
+            background: linear-gradient(135deg, #e0ffe0 0%, #f0fff0 100%);
         }
 
-        .copy-btn:hover {
-            background: #764ba2;
+        .result-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+        }
+
+        .confidence-badge {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            padding: 6px 15px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+
+        .confidence-very-high { background: #00b894; color: white; }
+        .confidence-high { background: #00cec9; color: white; }
+        .confidence-medium { background: #fdcb6e; color: #333; }
+        .confidence-low { background: #e17055; color: white; }
+
+        .hash-info {
+            display: grid;
+            grid-template-columns: 1fr 2fr;
+            gap: 20px;
+            align-items: center;
         }
 
         .preview-container {
             text-align: center;
-            margin-top: 15px;
         }
 
         .preview-img {
@@ -205,469 +207,518 @@
             transform: scale(1.05);
         }
 
+        .url-section {
+            margin: 15px 0;
+        }
+
+        .url-container {
+            background: #f8f9fa;
+            padding: 12px;
+            border-radius: 8px;
+            margin: 8px 0;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            word-break: break-all;
+            position: relative;
+            border: 1px solid #ddd;
+        }
+
+        .copy-btn {
+            position: absolute;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 11px;
+        }
+
+        .copy-btn:hover {
+            background: #764ba2;
+        }
+
+        .stats {
+            background: rgba(102, 126, 234, 0.1);
+            padding: 15px;
+            border-radius: 10px;
+            margin: 15px 0;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            text-align: center;
+        }
+
+        .stat-item {
+            background: white;
+            padding: 10px;
+            border-radius: 8px;
+            border: 1px solid #ddd;
+        }
+
+        .stat-number {
+            font-size: 24px;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: #666;
+            text-transform: uppercase;
+        }
+
+        .error, .success, .info, .warning {
+            padding: 15px;
+            border-radius: 10px;
+            margin: 15px 0;
+            border-left: 5px solid;
+        }
+
+        .error { background: #ffe0e0; color: #d63031; border-color: #d63031; }
+        .success { background: #e0ffe0; color: #00b894; border-color: #00b894; }
+        .info { background: #e3f2fd; color: #1976d2; border-color: #1976d2; }
+        .warning { background: #fff3cd; color: #856404; border-color: #ffc107; }
+
         .loading {
             text-align: center;
+            padding: 30px;
             color: #667eea;
             font-size: 18px;
-            margin: 20px 0;
         }
 
-        .error {
-            background: #ffe0e0;
-            color: #d63031;
-            padding: 15px;
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .spinner {
+            display: inline-block;
+            margin-right: 10px;
+            animation: spin 1s linear infinite;
+        }
+
+        .method-tabs {
+            display: flex;
+            margin-bottom: 20px;
             border-radius: 10px;
-            margin: 15px 0;
-            border-left: 5px solid #d63031;
+            overflow: hidden;
+            background: #eee;
         }
 
-        .success {
-            background: #e0ffe0;
-            color: #00b894;
+        .tab-button {
+            flex: 1;
             padding: 15px;
-            border-radius: 10px;
-            margin: 15px 0;
-            border-left: 5px solid #00b894;
+            background: #eee;
+            border: none;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 600;
         }
 
-        .info {
-            background: #e3f2fd;
-            color: #1976d2;
-            padding: 15px;
-            border-radius: 10px;
-            margin: 15px 0;
-            border-left: 5px solid #1976d2;
+        .tab-button.active {
+            background: #667eea;
+            color: white;
         }
 
-        @keyframes pulse {
-            0% { opacity: 1; }
-            50% { opacity: 0.5; }
-            100% { opacity: 1; }
+        .tab-content {
+            display: none;
+            animation: fadeIn 0.3s ease;
         }
 
-        .loading {
-            animation: pulse 1.5s infinite;
+        .tab-content.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
         }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>🎯 Feature Graphic Extractor</h1>
-        <p class="subtitle">Extrae Feature Graphics de Google Play Store usando múltiples métodos</p>
+        <p class="subtitle">Versión Optimizada - Basada en Análisis de Datos Reales</p>
         
-        <div class="input-group">
-            <label for="appUrl">🔗 URL de Google Play Store o App ID:</label>
-            <input type="text" id="appUrl" placeholder="https://play.google.com/store/apps/details?id=com.example.app o com.example.app">
+        <div class="method-tabs">
+            <button class="tab-button active" onclick="switchTab('smart')">🧠 Búsqueda Inteligente</button>
+            <button class="tab-button" onclick="switchTab('database')">📚 Base de Datos</button>
+            <button class="tab-button" onclick="switchTab('manual')">🛠️ Manual</button>
         </div>
-        
-        <div class="button-group">
-            <button class="btn-primary" onclick="extractFeatureGraphic()">🚀 Extraer Feature Graphic</button>
-            <button class="btn-secondary" onclick="clearResults()">🗑️ Limpiar Resultados</button>
+
+        <!-- TAB 1: Búsqueda Inteligente -->
+        <div id="smart" class="tab-content active">
+            <div class="quick-tools">
+                <div class="main-input">
+                    <label for="smartAppId">🔗 URL de Google Play o App ID:</label>
+                    <input type="text" id="smartAppId" placeholder="https://play.google.com/store/apps/details?id=com.ejemplo.app">
+                    <button class="btn-primary" onclick="smartExtraction()">🚀 Extracción Inteligente</button>
+                    <div class="progress-bar" id="progressBar" style="display: none;">
+                        <div class="progress-fill" id="progressFill"></div>
+                    </div>
+                </div>
+                
+                <div class="quick-actions">
+                    <h4>⚡ Acciones Rápidas</h4>
+                    <button class="btn-success btn-small" onclick="testKnownExamples()">🎯 Probar Ejemplos</button>
+                    <button class="btn-secondary btn-small" onclick="showOptimizationTips()">💡 Consejos</button>
+                    <button class="btn-secondary btn-small" onclick="clearAllResults()">🗑️ Limpiar</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 2: Base de Datos -->
+        <div id="database" class="tab-content">
+            <div class="main-input">
+                <label for="dbAppId">App ID para buscar en base de datos:</label>
+                <input type="text" id="dbAppId" placeholder="com.tripledot.woodoku">
+                <button class="btn-success" onclick="searchDatabase()">🔍 Buscar en BD</button>
+                <button class="btn-secondary" onclick="showAllDatabase()">📋 Ver Toda la BD</button>
+                <button class="btn-primary" onclick="addToDatabase()">➕ Añadir a BD</button>
+            </div>
+        </div>
+
+        <!-- TAB 3: Manual -->
+        <div id="manual" class="tab-content">
+            <div class="main-input">
+                <label for="manualHash">Hash específico para probar:</label>
+                <input type="text" id="manualHash" placeholder="uRzP9C7cS9NpBjxtC4V-1WOFTitY--kX_oEbZisgGFqrNiLDVguw1DXhfZVcwVDOuQ">
+                <button class="btn-primary" onclick="testSpecificHash()">🧪 Probar Hash</button>
+                
+                <div style="margin-top: 20px;">
+                    <h4>🎯 Hashes de tus ejemplos:</h4>
+                    <button class="btn-small btn-secondary" onclick="loadExampleHash('uRzP9C7cS9NpBjxtC4V-1WOFTitY--kX_oEbZisgGFqrNiLDVguw1DXhfZVcwVDOuQ')">Woodoku</button>
+                    <button class="btn-small btn-secondary" onclick="loadExampleHash('yAn8eSMp-skjyG0sWgxz-AzI5Ph-5_YA4Z0Pw1OCybx7nWdtGzrcxb6Q49uyNzmnCTs')">Bungeoppang</button>
+                </div>
+            </div>
         </div>
 
         <div id="results"></div>
     </div>
 
     <script>
-        // Variables globales
-        let currentAppId = '';
-        
-        // Extraer App ID de URL
-        function extractAppId(input) {
-            if (input.includes('play.google.com')) {
-                const match = input.match(/id=([^&]+)/);
-                return match ? match[1] : null;
-            } else if (input.includes('.')) {
-                return input.trim();
+        // Base de datos expandida con tus nuevos hallazgos
+        const featureGraphicDatabase = [
+            { 
+                appId: 'com.allstarunion.cdw', 
+                hash: '1HKoU8esoQsulw-wPb3-OgCkGSIkRyrB9lRtzDKI4eYNf2LFVTBeKCi2h9bSgpWKkq4',
+                name: 'Castle Defense War',
+                verified: true,
+                method: 'manual_verified'
+            },
+            { 
+                appId: 'com.neowiz.cats.soup.sng', 
+                hash: 'SnSiWC_d0oxmqVG_9xoZ0A2qrYXfqhUwT0pcroZ_qid3Y-KSeu-Qd1Ot96hAxFtParg',
+                name: 'Cat Soup',
+                verified: true,
+                method: 'manual_verified'
+            },
+            { 
+                appId: 'com.ction.playergames', 
+                hash: 'whHbuRHPN4wSBlrnh8xlQcyGpInWtQOUoenofTxMQZHUPBrssWJv9_WXK2oDkd4K668u',
+                name: 'Player Games',
+                verified: true,
+                method: 'manual_verified'
+            },
+            { 
+                appId: 'com.tripledot.woodoku', 
+                hash: 'uRzP9C7cS9NpBjxtC4V-1WOFTitY--kX_oEbZisgGFqrNiLDVguw1DXhfZVcwVDOuQ',
+                name: 'Woodoku',
+                verified: true,
+                method: 'cors_proxy_position_46'
+            },
+            { 
+                appId: 'com.xxyx.sea', 
+                hash: 'Xad9K9JPX_nMp_Fb_1MfmTLDl0xOa4Iygbl225_9dR8_ZxxKUUdWauMHysebxbgJfa4',
+                name: 'Sea Battle',
+                verified: true,
+                method: 'manual_verified'
+            },
+            { 
+                appId: 'com.arumgames.bungeoppang', 
+                hash: 'yAn8eSMp-skjyG0sWgxz-AzI5Ph-5_YA4Z0Pw1OCybx7nWdtGzrcxb6Q49uyNzmnCTs',
+                name: 'Bungeoppang',
+                verified: true,
+                method: 'cors_proxy_position_41'
             }
-            return null;
-        }
-        
-        // Método 1: Buscar via CORS proxy
-        async function searchViaProxy(appId) {
+        ];
+
+        // Filtros optimizados basados en tus datos reales
+        const optimizedFilters = {
+            // Hashes que definitivamente NO son Feature Graphics
+            exclusions: [
+                // Iconos conocidos de Google Play
+                'XRlCpj22PFJuFK43QcE3u5RxmoNUed7YO_zG-6F1PCqjrBIIURbTBDvTgLVVIk5pNeY',
+                // Patrones de iconos (muy cortos o formatos específicos)
+                /^.{1,35}$/, // Hashes muy cortos
+                /.*icon.*/, // Cualquier cosa con "icon"
+                /.*logo.*/, // Cualquier cosa con "logo"
+            ],
+            
+            // Características de Feature Graphics válidos (basado en tus ejemplos)
+            featureGraphicTraits: {
+                minLength: 50, // Todos tus ejemplos tienen 60+ caracteres
+                preferredLength: [60, 70], // Rango óptimo
+                contextKeywords: ['non-screenshot', 'banner', 'hero', 'feature'],
+                avoidKeywords: ['icon', 'logo', 'screenshot', 'gallery', 'play-pass']
+            }
+        };
+
+        // ALGORITMO OPTIMIZADO DE BÚSQUEDA
+        async function smartExtraction() {
+            const input = document.getElementById('smartAppId').value.trim();
+            const appId = extractAppId(input);
+            
+            if (!appId) {
+                showError('❌ URL o App ID inválido');
+                return;
+            }
+
+            clearAllResults();
+            showProgress(0, 'Iniciando búsqueda inteligente...');
+
+            // PASO 1: Verificar base de datos primero (más rápido)
+            showProgress(20, 'Verificando base de datos...');
+            const dbResult = searchInDatabase(appId);
+            
+            if (dbResult.found) {
+                showProgress(100, 'Completado');
+                showSuccess(`🎯 ¡Encontrado en base de datos! ${dbResult.data.name}`);
+                displayOptimizedResult(dbResult.data.hash, 'BASE_DE_DATOS', 'very-high', 
+                    `Coincidencia exacta verificada para ${appId}`);
+                return;
+            }
+
+            // PASO 2: Búsqueda inteligente optimizada
+            showProgress(40, 'Analizando contenido...');
+            
             try {
-                showLoading('Buscando via proxy...');
-                
-                // Usar un proxy CORS para acceder a Google Play
                 const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(`https://play.google.com/store/apps/details?id=${appId}&hl=en`)}`;
-                
                 const response = await fetch(proxyUrl);
                 const data = await response.json();
-                
-                if (data.contents) {
-                    const htmlContent = data.contents;
-                    const candidates = extractHashesFromHtml(htmlContent);
-                    
-                    return {
-                        method: 'CORS_PROXY',
-                        success: true,
-                        candidates: candidates
-                    };
+
+                if (!data.contents) {
+                    throw new Error('No se pudo obtener contenido de la página');
                 }
+
+                showProgress(60, 'Aplicando filtros inteligentes...');
                 
-                return { method: 'CORS_PROXY', success: false, error: 'No content received' };
+                // Aplicar algoritmo optimizado
+                const candidates = analyzeWithOptimizedAlgorithm(data.contents, appId);
+                
+                showProgress(80, 'Verificando candidatos...');
+                
+                if (candidates.length === 0) {
+                    showProgress(100, 'Sin resultados');
+                    showWarning('⚠️ No se encontraron Feature Graphics con alta confianza');
+                    showAlternativeSuggestions(appId);
+                    return;
+                }
+
+                showProgress(100, 'Completado');
+                
+                // Mostrar solo los top 3 candidatos para evitar ruido
+                const topCandidates = candidates.slice(0, 3);
+                showSuccess(`✅ Análisis completado - ${topCandidates.length} candidatos de alta calidad encontrados`);
+                
+                topCandidates.forEach((candidate, index) => {
+                    displayOptimizedResult(candidate.hash, candidate.method, candidate.confidence, candidate.reason, index === 0);
+                });
+
+                // Estadísticas del análisis
+                showAnalysisStats(candidates.length, topCandidates[0].totalAnalyzed || 0);
+
             } catch (error) {
-                return { method: 'CORS_PROXY', success: false, error: error.message };
+                showProgress(100, 'Error');
+                showError(`❌ Error: ${error.message}`);
+                showAlternativeSuggestions(appId);
             }
         }
-        
-        // Método 2: Buscar en AppBrain
-        async function searchInAppBrain(appId) {
-            try {
-                showLoading('Buscando en AppBrain...');
-                
-                const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(`https://www.appbrain.com/app/${appId}`)}`;
-                const response = await fetch(proxyUrl);
-                const data = await response.json();
-                
-                if (data.contents) {
-                    const candidates = extractHashesFromHtml(data.contents);
-                    return {
-                        method: 'APPBRAIN',
-                        success: true,
-                        candidates: candidates
-                    };
-                }
-                
-                return { method: 'APPBRAIN', success: false, error: 'No content' };
-            } catch (error) {
-                return { method: 'APPBRAIN', success: false, error: error.message };
-            }
-        }
-        
-        // Método 3: Generar URLs probables basadas en patrones conocidos
-        function generateProbableHashes(appId) {
-            const results = [];
-            
-            // Lista de hashes conocidos de Feature Graphics (puedes expandir esta lista)
-            const knownPatterns = [
-                // Patrones basados en tus ejemplos
-                '1HKoU8esoQsulw-wPb3-OgCkGSIkRyrB9lRtzDKI4eYNf2LFVTBeKCi2h9bSgpWKkq4', // com.allstarunion.cdw
-                'SnSiWC_d0oxmqVG_9xoZ0A2qrYXfqhUwT0pcroZ_qid3Y-KSeu-Qd1Ot96hAxFtParg', // com.neowiz.cats.soup.sng
-                'whHbuRHPN4wSBlrnh8xlQcyGpInWtQOUoenofTxMQZHUPBrssWJv9_WXK2oDkd4K668u', // com.ction.playergames
-                'uRzP9C7cS9NpBjxtC4V-1WOFTitY--kX_oEbZisgGFqrNiLDVguw1DXhfZVcwVDOuQ', // com.tripledot.woodoku
-                'Xad9K9JPX_nMp_Fb_1MfmTLDl0xOa4Iygbl225_9dR8_ZxxKUUdWauMHysebxbgJfa4' // com.xxyx.sea
-            ];
-            
-            return {
-                method: 'PATTERN_MATCHING',
-                success: true,
-                candidates: knownPatterns.map(hash => ({
-                    hash: hash,
-                    confidence: 'medium',
-                    source: 'Known pattern database'
-                }))
-            };
-        }
-        
-        // Extraer hashes de HTML
-        function extractHashesFromHtml(html) {
+
+        // ALGORITMO OPTIMIZADO basado en tus datos
+        function analyzeWithOptimizedAlgorithm(htmlContent, targetAppId) {
             const candidates = [];
             const hashPattern = /play-lh\.googleusercontent\.com\/([A-Za-z0-9_-]{40,})/gi;
             const seenHashes = new Set();
             let match;
-            
-            while ((match = hashPattern.exec(html)) !== null) {
+            let totalFound = 0;
+
+            while ((match = hashPattern.exec(htmlContent)) !== null) {
                 const hash = match[1];
-                if (hash.length >= 40 && !seenHashes.has(hash)) {
-                    seenHashes.add(hash);
-                    
-                    // Analizar contexto
-                    const start = Math.max(0, match.index - 200);
-                    const end = Math.min(html.length, match.index + 200);
-                    const context = html.substring(start, end).toLowerCase();
-                    
+                totalFound++;
+                
+                if (seenHashes.has(hash)) continue;
+                seenHashes.add(hash);
+
+                // FILTRO 1: Excluir hashes obviamente incorrectos
+                if (hash.length < optimizedFilters.featureGraphicTraits.minLength) continue;
+                if (hash === 'XRlCpj22PFJuFK43QcE3u5RxmoNUed7YO_zG-6F1PCqjrBIIURbTBDvTgLVVIk5pNeY') continue; // Ícono conocido
+
+                // FILTRO 2: Analizar contexto con mayor precisión
+                const contextStart = Math.max(0, match.index - 300);
+                const contextEnd = Math.min(htmlContent.length, match.index + 300);
+                const context = htmlContent.substring(contextStart, contextEnd).toLowerCase();
+
+                let score = 0;
+                let reasons = [];
+
+                // SCORING MEJORADO basado en tus resultados reales
+                
+                // Feature Graphics reales aparecen en contextos específicos
+                if (context.includes('featuregraphic') || context.includes('feature_graphic')) {
+                    score += 100; reasons.push('Contexto "featureGraphic"');
+                }
+                
+                if (context.includes('"promo"') || context.includes('promotional')) {
+                    score += 80; reasons.push('Contexto promocional');
+                }
+                
+                // Los Feature Graphics válidos tienden a aparecer en JSON estructurado específico
+                if (context.includes('{"') && context.includes('"}') && !context.includes('[')) {
+                    score += 60; reasons.push('Objeto JSON individual');
+                }
+                
+                // Longitud óptima de hash (tus ejemplos están en 60-70 caracteres)
+                if (hash.length >= 60 && hash.length <= 70) {
+                    score += 40; reasons.push('Longitud óptima de hash');
+                }
+                
+                // Evitar arrays largos de screenshots
+                const arrayMatches = (context.match(/,"/g) || []).length;
+                if (arrayMatches > 5) {
+                    score -= 50; reasons.push('En array de screenshots (-50)');
+                }
+                
+                // Penalizar contextos obvios de iconos/screenshots
+                if (context.includes('w512-h512') || context.includes('icon')) {
+                    score -= 60; reasons.push('Contexto de icono (-60)');
+                }
+                
+                if (context.includes('w1080-h1920') || context.includes('w1080-h2400')) {
+                    score -= 40; reasons.push('Dimensiones de screenshot (-40)');
+                }
+
+                // Bonus por posición temprana (pero no la primera, que suele ser el ícono)
+                const position = seenHashes.size;
+                if (position >= 2 && position <= 10) {
+                    score += 30; reasons.push('Posición favorable');
+                }
+
+                // Solo considerar candidatos con score positivo
+                if (score > 0) {
                     let confidence = 'low';
-                    let source = 'HTML content';
-                    
-                    if (context.includes('w416-h235') || context.includes('feature')) {
-                        confidence = 'high';
-                        source = 'Feature graphic dimensions found';
-                    } else if (context.includes('banner') || context.includes('hero')) {
-                        confidence = 'medium';
-                        source = 'Banner/hero context';
-                    } else if (!context.includes('screenshot') && !context.includes('icon')) {
-                        confidence = 'medium';
-                        source = 'Non-screenshot context';
-                    }
-                    
+                    if (score >= 80) confidence = 'very-high';
+                    else if (score >= 50) confidence = 'high';
+                    else if (score >= 20) confidence = 'medium';
+
                     candidates.push({
                         hash: hash,
+                        score: score,
                         confidence: confidence,
-                        source: source
+                        reasons: reasons,
+                        method: 'SMART_ALGORITHM',
+                        reason: reasons.join(', '),
+                        position: position,
+                        totalAnalyzed: totalFound
                     });
                 }
             }
-            
-            return candidates;
+
+            // Ordenar por score y retornar solo los mejores
+            candidates.sort((a, b) => b.score - a.score);
+            return candidates.slice(0, 5); // Solo top 5 para evitar ruido
         }
-        
-        // Función principal
-        async function extractFeatureGraphic() {
-            const input = document.getElementById('appUrl').value.trim();
-            const appId = extractAppId(input);
-            
-            if (!appId) {
-                showError('❌ URL o App ID inválido. Usa formato: com.example.app o URL completa de Google Play');
-                return;
-            }
-            
-            currentAppId = appId;
-            clearResults();
-            showInfo(`📱 Analizando app: ${appId}`);
-            
-            const results = [];
-            
-            // Ejecutar múltiples métodos en paralelo
-            const methods = [
-                searchViaProxy(appId),
-                searchInAppBrain(appId),
-                Promise.resolve(generateProbableHashes(appId))
-            ];
-            
-            try {
-                const methodResults = await Promise.allSettled(methods);
-                
-                methodResults.forEach((result, index) => {
-                    if (result.status === 'fulfilled' && result.value.success) {
-                        results.push(result.value);
-                    }
-                });
-                
-                if (results.length === 0) {
-                    showError('❌ No se encontraron Feature Graphics con ningún método');
-                    showAlternativeMethods(appId);
-                    return;
-                }
-                
-                // Procesar y mostrar resultados
-                const allCandidates = [];
-                results.forEach(result => {
-                    result.candidates.forEach(candidate => {
-                        allCandidates.push({
-                            ...candidate,
-                            method: result.method
-                        });
-                    });
-                });
-                
-                // Eliminar duplicados y ordenar por confianza
-                const uniqueCandidates = removeDuplicates(allCandidates);
-                const sortedCandidates = sortByConfidence(uniqueCandidates);
-                
-                showResults(sortedCandidates);
-                
-            } catch (error) {
-                showError(`❌ Error durante la extracción: ${error.message}`);
-                showAlternativeMethods(appId);
-            }
-        }
-        
-        // Mostrar resultados
-        function showResults(candidates) {
-            if (candidates.length === 0) {
-                showError('❌ No se encontraron Feature Graphics válidos');
-                return;
-            }
-            
+
+        function displayOptimizedResult(hash, method, confidence, description, isWinner = false) {
             const resultsDiv = document.getElementById('results');
             
-            let html = '<div class="results">';
-            html += '<h3>🎉 Feature Graphics Encontrados:</h3>';
-            
-            candidates.forEach((candidate, index) => {
-                const urls = {
-                    feature: `https://play-lh.googleusercontent.com/${candidate.hash}=w416-h235-rw`,
-                    high: `https://play-lh.googleusercontent.com/${candidate.hash}=w1024-h500-rw`,
-                    banner: `https://play-lh.googleusercontent.com/${candidate.hash}=w526-h296-rw`
-                };
-                
-                const isTop = index === 0;
-                const crown = isTop ? '👑 ' : '';
-                
-                html += `
-                    <div class="result-item">
-                        <div class="method-tag">${candidate.method}</div>
-                        <div class="confidence ${candidate.confidence}">${candidate.confidence.toUpperCase()}</div>
-                        <h4>${crown}Candidato #${index + 1}</h4>
-                        <p><strong>Fuente:</strong> ${candidate.source || 'Análisis automático'}</p>
-                        <p><strong>Hash:</strong> <code>${candidate.hash}</code></p>
-                        
-                        <div class="url-container">
-                            <strong>Feature Graphic (416×235):</strong><br>
-                            ${urls.feature}
-                            <button class="copy-btn" onclick="copyToClipboard('${urls.feature}')">📋</button>
-                        </div>
-                        
-                        <div class="url-container">
-                            <strong>Alta Resolución (1024×500):</strong><br>
-                            ${urls.high}
-                            <button class="copy-btn" onclick="copyToClipboard('${urls.high}')">📋</button>
+            const urls = {
+                feature: `https://play-lh.googleusercontent.com/${hash}=w416-h235-rw`,
+                high: `https://play-lh.googleusercontent.com/${hash}=w1024-h500-rw`,
+                banner: `https://play-lh.googleusercontent.com/${hash}=w526-h296-rw`
+            };
+
+            const winnerClass = isWinner ? 'winner' : '';
+            const winnerIcon = isWinner ? '👑 ' : '';
+
+            const resultHtml = `
+                <div class="result-card ${winnerClass}">
+                    <div class="confidence-badge confidence-${confidence}">${confidence.replace('-', ' ')}</div>
+                    
+                    <h3>${winnerIcon}${method}</h3>
+                    <p style="color: #666; margin-bottom: 15px;">${description}</p>
+                    
+                    <div class="hash-info">
+                        <div>
+                            <p><strong>Hash:</strong></p>
+                            <code style="background: #f0f0f0; padding: 5px; border-radius: 5px; word-break: break-all; font-size: 11px;">${hash}</code>
+                            
+                            <div class="url-section">
+                                <div class="url-container">
+                                    <strong>Feature Graphic (416×235):</strong><br>
+                                    ${urls.feature}
+                                    <button class="copy-btn" onclick="copyToClipboard('${urls.feature}')">📋</button>
+                                </div>
+                                
+                                <div class="url-container">
+                                    <strong>Alta Resolución (1024×500):</strong><br>
+                                    ${urls.high}
+                                    <button class="copy-btn" onclick="copyToClipboard('${urls.high}')">📋</button>
+                                </div>
+                            </div>
                         </div>
                         
                         <div class="preview-container">
                             <img class="preview-img" src="${urls.feature}" alt="Feature Graphic Preview" 
-                                 onerror="this.style.display='none'; this.nextElementSibling.style.display='block';"
-                                 onload="this.style.display='block'; this.nextElementSibling.style.display='none';">
-                            <div style="display:none; color:#e17055;">❌ No se pudo cargar la imagen</div>
+                                 onload="handleImageLoad(this)" 
+                                 onerror="handleImageError(this)">
+                            <div class="image-status" style="display: none; padding: 10px; color: #e17055;">
+                                ❌ Error al cargar imagen
+                            </div>
                         </div>
-                    </div>
-                `;
-            });
-            
-            html += '</div>';
-            
-            // Mostrar métodos alternativos
-            html += getAlternativeMethodsHtml(currentAppId);
-            
-            resultsDiv.innerHTML = html;
-            
-            // Copiar automáticamente el mejor resultado
-            if (candidates.length > 0) {
-                const bestUrl = `https://play-lh.googleusercontent.com/${candidates[0].hash}=w416-h235-rw`;
-                copyToClipboard(bestUrl);
-                showSuccess('📋 Mejor candidato copiado automáticamente al portapapeles');
-            }
-        }
-        
-        // Utilidades
-        function removeDuplicates(candidates) {
-            const seen = new Set();
-            return candidates.filter(candidate => {
-                if (seen.has(candidate.hash)) {
-                    return false;
-                }
-                seen.add(candidate.hash);
-                return true;
-            });
-        }
-        
-        function sortByConfidence(candidates) {
-            const confidenceOrder = { 'high': 3, 'medium': 2, 'low': 1 };
-            return candidates.sort((a, b) => {
-                return confidenceOrder[b.confidence] - confidenceOrder[a.confidence];
-            });
-        }
-        
-        function copyToClipboard(text) {
-            navigator.clipboard.writeText(text).then(() => {
-                showSuccess('📋 Copiado al portapapeles');
-            }).catch(() => {
-                prompt('Copia manualmente:', text);
-            });
-        }
-        
-        function showLoading(message) {
-            const resultsDiv = document.getElementById('results');
-            resultsDiv.innerHTML = `<div class="loading">${message}</div>`;
-        }
-        
-        function showError(message) {
-            const resultsDiv = document.getElementById('results');
-            resultsDiv.innerHTML += `<div class="error">${message}</div>`;
-        }
-        
-        function showSuccess(message) {
-            const resultsDiv = document.getElementById('results');
-            resultsDiv.innerHTML += `<div class="success">${message}</div>`;
-        }
-        
-        function showInfo(message) {
-            const resultsDiv = document.getElementById('results');
-            resultsDiv.innerHTML += `<div class="info">${message}</div>`;
-        }
-        
-        function clearResults() {
-            document.getElementById('results').innerHTML = '';
-        }
-        
-        function showAlternativeMethods(appId) {
-            const html = getAlternativeMethodsHtml(appId);
-            document.getElementById('results').innerHTML += html;
-        }
-        
-        function getAlternativeMethodsHtml(appId) {
-            return `
-                <div class="results">
-                    <h3>🔧 Métodos Alternativos:</h3>
-                    
-                    <div class="result-item">
-                        <div class="method-tag">APK EXTRACTOR</div>
-                        <h4>📦 Extraer desde APK</h4>
-                        <p>Descarga el APK y extrae el Feature Graphic directamente:</p>
-                        <div class="url-container">
-                            APKMirror: https://www.apkmirror.com/?s=${appId}
-                            <button class="copy-btn" onclick="copyToClipboard('https://www.apkmirror.com/?s=${appId}')">📋</button>
-                        </div>
-                        <div class="url-container">
-                            APKPure: https://apkpure.com/search?q=${appId}
-                            <button class="copy-btn" onclick="copyToClipboard('https://apkpure.com/search?q=${appId}')">📋</button>
-                        </div>
-                        <p><small>💡 Busca en /res/drawable/ por feature_graphic.png</small></p>
                     </div>
                     
-                    <div class="result-item">
-                        <div class="method-tag">API SERVICES</div>
-                        <h4>🌐 APIs de Terceros</h4>
-                        <p>Servicios profesionales para extraer datos de Google Play:</p>
-                        <ul style="margin: 10px 0; padding-left: 20px;">
-                            <li><strong>SerpApi:</strong> serpapi.com/google-play-apps-store-api</li>
-                            <li><strong>DataForSEO:</strong> dataforseo.com/apis/google-play-api</li>
-                            <li><strong>AppTweak:</strong> apptweak.com/aso-api</li>
-                        </ul>
-                    </div>
-                    
-                    <div class="result-item">
-                        <div class="method-tag">MANUAL SEARCH</div>
-                        <h4>🔍 Búsqueda Manual</h4>
-                        <p>Revisa estos sitios manualmente:</p>
-                        <div class="url-container">
-                            Google Images: https://images.google.com/search?q="${appId} feature graphic"
-                            <button class="copy-btn" onclick="copyToClipboard('https://images.google.com/search?q=&quot;${appId} feature graphic&quot;')">📋</button>
-                        </div>
-                    </div>
+                    ${isWinner ? '<button class="btn-success" onclick="saveToDatabase(\'' + hash + '\')">💾 Guardar en BD</button>' : ''}
                 </div>
             `;
-        }
-        
-        // Función para probar hashes conocidos
-        function testKnownHashes() {
-            showLoading('Probando base de datos de hashes conocidos...');
-            
-            const knownHashes = [
-                { hash: '1HKoU8esoQsulw-wPb3-OgCkGSIkRyrB9lRtzDKI4eYNf2LFVTBeKCi2h9bSgpWKkq4', app: 'com.allstarunion.cdw' },
-                { hash: 'SnSiWC_d0oxmqVG_9xoZ0A2qrYXfqhUwT0pcroZ_qid3Y-KSeu-Qd1Ot96hAxFtParg', app: 'com.neowiz.cats.soup.sng' },
-                { hash: 'whHbuRHPN4wSBlrnh8xlQcyGpInWtQOUoenofTxMQZHUPBrssWJv9_WXK2oDkd4K668u', app: 'com.ction.playergames' },
-                { hash: 'uRzP9C7cS9NpBjxtC4V-1WOFTitY--kX_oEbZisgGFqrNiLDVguw1DXhfZVcwVDOuQ', app: 'com.tripledot.woodoku' },
-                { hash: 'Xad9K9JPX_nMp_Fb_1MfmTLDl0xOa4Iygbl225_9dR8_ZxxKUUdWauMHysebxbgJfa4', app: 'com.xxyx.sea' }
-            ];
-            
-            const candidates = knownHashes.map(item => ({
-                hash: item.hash,
-                confidence: item.app === currentAppId ? 'high' : 'low',
-                source: `Base de datos conocida (${item.app})`,
-                method: 'KNOWN_DATABASE'
-            }));
-            
-            showResults(candidates);
-        }
-        
-        // Event listeners
-        document.getElementById('appUrl').addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') {
-                extractFeatureGraphic();
+
+            resultsDiv.innerHTML += resultHtml;
+
+            // Auto-copiar el ganador
+            if (isWinner) {
+                copyToClipboard(urls.feature);
+                setTimeout(() => showSuccess('📋 Feature Graphic del ganador copiado automáticamente'), 500);
             }
-        });
-        
-        // Autocompletar ejemplos
-        document.getElementById('appUrl').addEventListener('focus', function() {
-            if (!this.value) {
-                this.placeholder = 'Ejemplo: com.allstarunion.cdw';
+        }
+
+        function searchInDatabase(appId) {
+            const found = featureGraphicDatabase.find(item => item.appId === appId);
+            return {
+                found: !!found,
+                data: found
+            };
+        }
+
+        function searchDatabase() {
+            const appId = document.getElementById('dbAppId').value.trim();
+            const extracted = extractAppId(appId);
+            
+            if (!extracted) {
+                showError('❌ App ID inválido');
+                return;
             }
-        });
-        
-        console.log('🎯 Feature Graphic Extractor cargado');
-        console.log('💡 Ingresa una URL de Google Play Store o App ID para comenzar');
-    </script>
-</body>
-</html>
+
+            clearAllResults();
+            
+            const result = searchInDatabase(extracted);
+            
+            if (result.found) {
+                showSuccess(`✅ Encontrado: ${result.data.name}`);
+                displayOptimizedResult(result.data.hash, 'BASE_DE_DATOS', 'very-high', 
+                    `Verificado previamente - ${result.data.method}`, true);
+            } else {
+                showWarning
