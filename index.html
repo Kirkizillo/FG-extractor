@@ -313,29 +313,22 @@
       const playUrl = `https://play.google.com/store/apps/details?` + new URLSearchParams({id:pkg, hl:'en', gl:'US'}).toString();
       const target = proxy.endsWith('=') ? proxy + encodeURIComponent(playUrl) : proxy + playUrl;
 
-      setStatus('Fetching page via proxy…'); let html='';
-      try{ const r=await fetch(target); if(!r.ok) throw new Error(`Proxy HTTP ${r.status}`); html=await r.text(); }
-      catch(e){ return setStatus(`Fetch failed: ${e.message}`,'err'); }
-
-      if (/consent|__CONSENT|mCONSENT|consent\.google/i.test(html)) {
-        return setStatus('Google returned a consent page. Update the Worker to send CONSENT cookie and force hl=en&gl=US.', 'err');
-      }
-
-      setStatus('Parsing internal data…');
+      setStatus('Fetching page via proxy…');
       try {
-        const feat = await extractFeatureGraphic(html, pkg);
-        if (!feat) return setStatus('No feature graphic found.','err');
+      const api = proxy.endsWith('=') ? proxy + encodeURIComponent(playUrl) : proxy + playUrl;
+      const r = await fetch(api);
+      if(!r.ok) throw new Error(`Proxy HTTP ${r.status}`);
+      const data = await r.json();
+      if (!data.ok || !data.url) return setStatus('No feature graphic found.','err');
 
-        const normalized = normalizeW1024(feat, elKeep.checked);
-        elOut.value = normalized; elPrev.src = normalized; elOpen.href = normalized;
-        const s = extractWH(feat);
-        elMeta.textContent = s ? `Original size tokens: w${s.w}×h${s.h} (~${(s.ratio).toFixed(3)}:1)` : 'Original size tokens: unknown';
-        setStatus('Done ✔','ok'); elRes.classList.remove('hidden');
-      } catch (err) {
-        console.error('[FGE] parsing error:', err);
-        setStatus('Parsing failed. Open console (F12) for details.','err');
+      const normalized = normalizeW1024(data.url, elKeep.checked);
+      elOut.value = normalized; elPrev.src = normalized; elOpen.href = normalized;
+      elMeta.textContent = 'Original size unknown (Worker normalized)';
+      setStatus('Done ✔','ok'); elRes.classList.remove('hidden');
+      } catch(e) {
+      return setStatus(`Fetch failed: ${e.message}`,'err');
       }
-    }
+
 
     async function copy(){
       try { await navigator.clipboard.writeText(elOut.value); elCopy.textContent='Copied'; setTimeout(()=> elCopy.textContent='Copy URL', 1000); } catch {}
