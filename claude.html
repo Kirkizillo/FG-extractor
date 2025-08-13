@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Google Play Feature Graphic Extractor - Optimizado</title>
+    <title>Feature Graphic Finder</title>
     <style>
         * {
             margin: 0;
@@ -12,7 +12,7 @@
         }
 
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
             display: flex;
@@ -22,24 +22,23 @@
         }
 
         .container {
-            background: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(10px);
+            background: white;
             border-radius: 20px;
             padding: 40px;
-            max-width: 1000px;
+            max-width: 900px;
             width: 100%;
             box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
-            border: 1px solid rgba(255, 255, 255, 0.2);
         }
 
         h1 {
             text-align: center;
             color: #333;
             margin-bottom: 10px;
-            font-size: 2.5em;
+            font-size: 2.2em;
             background: linear-gradient(45deg, #667eea, #764ba2);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
+            background-clip: text;
         }
 
         .subtitle {
@@ -49,30 +48,16 @@
             font-size: 1.1em;
         }
 
-        .quick-tools {
-            display: grid;
-            grid-template-columns: 2fr 1fr;
-            gap: 20px;
+        .input-section {
+            background: #f8f9fa;
+            padding: 25px;
+            border-radius: 15px;
             margin-bottom: 30px;
-        }
-
-        .main-input {
-            background: rgba(246, 246, 246, 0.8);
-            padding: 25px;
-            border-radius: 15px;
-            border-left: 5px solid #667eea;
-        }
-
-        .quick-actions {
-            background: rgba(246, 246, 246, 0.8);
-            padding: 25px;
-            border-radius: 15px;
-            border-left: 5px solid #00b894;
         }
 
         label {
             display: block;
-            margin-bottom: 8px;
+            margin-bottom: 10px;
             color: #333;
             font-weight: 600;
         }
@@ -83,144 +68,139 @@
             border: 2px solid #ddd;
             border-radius: 10px;
             font-size: 16px;
-            transition: all 0.3s ease;
             margin-bottom: 15px;
         }
 
         input:focus {
             outline: none;
             border-color: #667eea;
-            box-shadow: 0 0 10px rgba(102, 126, 234, 0.2);
         }
 
         button {
-            padding: 12px 20px;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            padding: 15px 30px;
             border: none;
-            border-radius: 8px;
-            font-size: 14px;
+            border-radius: 10px;
+            font-size: 16px;
             font-weight: 600;
             cursor: pointer;
             transition: all 0.3s ease;
-            margin: 5px;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-
-        .btn-primary {
-            background: linear-gradient(45deg, #667eea, #764ba2);
-            color: white;
-        }
-
-        .btn-success {
-            background: linear-gradient(45deg, #00b894, #00cec9);
-            color: white;
-        }
-
-        .btn-secondary {
-            background: linear-gradient(45deg, #ffeaa7, #fab1a0);
-            color: #333;
-        }
-
-        .btn-small {
-            padding: 8px 15px;
-            font-size: 12px;
-            margin: 2px;
         }
 
         button:hover {
             transform: translateY(-2px);
-            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+        }
+
+        .progress {
+            width: 100%;
+            height: 8px;
+            background: #eee;
+            border-radius: 4px;
+            margin: 20px 0;
+            overflow: hidden;
         }
 
         .progress-bar {
-            width: 100%;
-            height: 6px;
-            background: #eee;
-            border-radius: 3px;
-            overflow: hidden;
-            margin: 15px 0;
-        }
-
-        .progress-fill {
             height: 100%;
             background: linear-gradient(45deg, #667eea, #764ba2);
             width: 0%;
             transition: width 0.3s ease;
         }
 
-        .result-card {
+        .status {
+            text-align: center;
+            margin: 10px 0;
+            font-weight: 500;
+            color: #667eea;
+        }
+
+        .candidates-container {
+            margin-top: 30px;
+        }
+
+        .candidate {
             background: white;
+            border: 2px solid #eee;
             border-radius: 15px;
             padding: 20px;
             margin: 15px 0;
-            border: 2px solid #eee;
             transition: all 0.3s ease;
-            position: relative;
         }
 
-        .result-card.winner {
+        .candidate:hover {
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.1);
+            transform: translateY(-2px);
+        }
+
+        .candidate.likely {
             border-color: #00b894;
-            background: linear-gradient(135deg, #e0ffe0 0%, #f0fff0 100%);
+            background: linear-gradient(135deg, #e8f5e8 0%, #f0fff0 100%);
         }
 
-        .result-card:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+        .candidate.possible {
+            border-color: #fdcb6e;
+            background: linear-gradient(135deg, #fff9e6 0%, #fffef0 100%);
         }
 
-        .confidence-badge {
-            position: absolute;
-            top: 15px;
-            right: 15px;
-            padding: 6px 15px;
+        .candidate-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .confidence {
+            padding: 5px 12px;
             border-radius: 20px;
             font-size: 12px;
             font-weight: bold;
             text-transform: uppercase;
         }
 
-        .confidence-very-high { background: #00b894; color: white; }
-        .confidence-high { background: #00cec9; color: white; }
-        .confidence-medium { background: #fdcb6e; color: #333; }
-        .confidence-low { background: #e17055; color: white; }
-
-        .hash-info {
-            display: grid;
-            grid-template-columns: 1fr 2fr;
-            gap: 20px;
-            align-items: center;
+        .confidence.high {
+            background: #00b894;
+            color: white;
         }
 
-        .preview-container {
+        .confidence.medium {
+            background: #fdcb6e;
+            color: #333;
+        }
+
+        .confidence.low {
+            background: #e17055;
+            color: white;
+        }
+
+        .image-preview {
             text-align: center;
+            margin: 15px 0;
         }
 
         .preview-img {
             max-width: 100%;
             height: auto;
-            border-radius: 10px;
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
-            transition: transform 0.3s ease;
+            border-radius: 8px;
+            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2);
         }
 
-        .preview-img:hover {
-            transform: scale(1.05);
-        }
-
-        .url-section {
-            margin: 15px 0;
+        .image-info {
+            margin-top: 10px;
+            font-size: 13px;
+            color: #666;
         }
 
         .url-container {
-            background: #f8f9fa;
+            background: #f1f3f4;
             padding: 12px;
             border-radius: 8px;
-            margin: 8px 0;
+            margin: 10px 0;
             font-family: 'Courier New', monospace;
-            font-size: 13px;
+            font-size: 12px;
             word-break: break-all;
             position: relative;
-            border: 1px solid #ddd;
         }
 
         .copy-btn {
@@ -231,651 +211,449 @@
             background: #667eea;
             color: white;
             border: none;
-            padding: 6px 12px;
+            padding: 5px 10px;
             border-radius: 5px;
             cursor: pointer;
             font-size: 11px;
         }
 
-        .copy-btn:hover {
-            background: #764ba2;
-        }
-
-        .stats {
-            background: rgba(102, 126, 234, 0.1);
+        .analysis-info {
+            background: #f8f9fa;
             padding: 15px;
-            border-radius: 10px;
-            margin: 15px 0;
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-            gap: 15px;
-            text-align: center;
-        }
-
-        .stat-item {
-            background: white;
-            padding: 10px;
             border-radius: 8px;
-            border: 1px solid #ddd;
-        }
-
-        .stat-number {
-            font-size: 24px;
-            font-weight: bold;
-            color: #667eea;
-        }
-
-        .stat-label {
-            font-size: 12px;
+            margin-top: 15px;
+            font-size: 13px;
             color: #666;
-            text-transform: uppercase;
         }
 
-        .error, .success, .info, .warning {
+        .error, .warning, .info {
             padding: 15px;
             border-radius: 10px;
             margin: 15px 0;
-            border-left: 5px solid;
         }
 
-        .error { background: #ffe0e0; color: #d63031; border-color: #d63031; }
-        .success { background: #e0ffe0; color: #00b894; border-color: #00b894; }
-        .info { background: #e3f2fd; color: #1976d2; border-color: #1976d2; }
-        .warning { background: #fff3cd; color: #856404; border-color: #ffc107; }
-
-        .loading {
-            text-align: center;
-            padding: 30px;
-            color: #667eea;
-            font-size: 18px;
+        .error {
+            background: #ffe6e6;
+            color: #d63031;
+            border-left: 4px solid #d63031;
         }
 
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
+        .warning {
+            background: #fff3cd;
+            color: #856404;
+            border-left: 4px solid #ffc107;
         }
 
-        .spinner {
-            display: inline-block;
-            margin-right: 10px;
-            animation: spin 1s linear infinite;
-        }
-
-        .method-tabs {
-            display: flex;
-            margin-bottom: 20px;
-            border-radius: 10px;
-            overflow: hidden;
-            background: #eee;
-        }
-
-        .tab-button {
-            flex: 1;
-            padding: 15px;
-            background: #eee;
-            border: none;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            font-weight: 600;
-        }
-
-        .tab-button.active {
-            background: #667eea;
-            color: white;
-        }
-
-        .tab-content {
-            display: none;
-            animation: fadeIn 0.3s ease;
-        }
-
-        .tab-content.active {
-            display: block;
-        }
-
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        @media (max-width: 768px) {
-            .quick-tools {
-                grid-template-columns: 1fr;
-            }
-            
-            .hash-info {
-                grid-template-columns: 1fr;
-            }
-            
-            h1 {
-                font-size: 2em;
-            }
+        .info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border-left: 4px solid #17a2b8;
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>🎯 Feature Graphic Extractor</h1>
-        <p class="subtitle">Versión Optimizada - Basada en Análisis de Datos Reales</p>
+        <h1>🔍 Feature Graphic Finder</h1>
+        <p class="subtitle">Encuentra Feature Graphics directamente desde Google Play</p>
         
-        <div class="method-tabs">
-            <button class="tab-button active" onclick="switchTab('smart')">🧠 Búsqueda Inteligente</button>
-            <button class="tab-button" onclick="switchTab('database')">📚 Base de Datos</button>
-            <button class="tab-button" onclick="switchTab('manual')">🛠️ Manual</button>
-        </div>
-
-        <!-- TAB 1: Búsqueda Inteligente -->
-        <div id="smart" class="tab-content active">
-            <div class="quick-tools">
-                <div class="main-input">
-                    <label for="smartAppId">🔗 URL de Google Play o App ID:</label>
-                    <input type="text" id="smartAppId" placeholder="https://play.google.com/store/apps/details?id=com.ejemplo.app">
-                    <button class="btn-primary" onclick="smartExtraction()">🚀 Extracción Inteligente</button>
-                    <div class="progress-bar" id="progressBar" style="display: none;">
-                        <div class="progress-fill" id="progressFill"></div>
-                    </div>
-                </div>
-                
-                <div class="quick-actions">
-                    <h4>⚡ Acciones Rápidas</h4>
-                    <button class="btn-success btn-small" onclick="testKnownExamples()">🎯 Probar Ejemplos</button>
-                    <button class="btn-secondary btn-small" onclick="showOptimizationTips()">💡 Consejos</button>
-                    <button class="btn-secondary btn-small" onclick="clearAllResults()">🗑️ Limpiar</button>
-                </div>
+        <div class="input-section">
+            <label for="appInput">URL de Google Play o App ID:</label>
+            <input type="text" id="appInput" 
+                   placeholder="https://play.google.com/store/apps/details?id=com.ejemplo.app">
+            <button onclick="findFeatureGraphic()" id="searchBtn">🔍 Buscar Feature Graphic</button>
+            
+            <div class="progress" id="progress" style="display: none;">
+                <div class="progress-bar" id="progressBar"></div>
             </div>
-        </div>
-
-        <!-- TAB 2: Base de Datos -->
-        <div id="database" class="tab-content">
-            <div class="main-input">
-                <label for="dbAppId">App ID para buscar en base de datos:</label>
-                <input type="text" id="dbAppId" placeholder="com.tripledot.woodoku">
-                <button class="btn-success" onclick="searchDatabase()">🔍 Buscar en BD</button>
-                <button class="btn-secondary" onclick="showAllDatabase()">📋 Ver Toda la BD</button>
-            </div>
-        </div>
-
-        <!-- TAB 3: Manual -->
-        <div id="manual" class="tab-content">
-            <div class="main-input">
-                <label for="manualHash">Hash específico para probar:</label>
-                <input type="text" id="manualHash" placeholder="uRzP9C7cS9NpBjxtC4V-1WOFTitY--kX_oEbZisgGFqrNiLDVguw1DXhfZVcwVDOuQ">
-                <button class="btn-primary" onclick="testSpecificHash()">🧪 Probar Hash</button>
-                
-                <div style="margin-top: 20px;">
-                    <h4>🎯 Hashes de tus ejemplos:</h4>
-                    <button class="btn-small btn-secondary" onclick="loadExampleHash('uRzP9C7cS9NpBjxtC4V-1WOFTitY--kX_oEbZisgGFqrNiLDVguw1DXhfZVcwVDOuQ')">Woodoku</button>
-                    <button class="btn-small btn-secondary" onclick="loadExampleHash('yAn8eSMp-skjyG0sWgxz-AzI5Ph-5_YA4Z0Pw1OCybx7nWdtGzrcxb6Q49uyNzmnCTs')">Bungeoppang</button>
-                </div>
-            </div>
+            <div class="status" id="status"></div>
         </div>
 
         <div id="results"></div>
     </div>
 
     <script>
-        // Base de datos con los feature graphics conocidos
-        let featureGraphicDatabase = [
-            { 
-                appId: 'com.allstarunion.cdw', 
-                hash: '1HKoU8esoQsulw-wPb3-OgCkGSIkRyrB9lRtzDKI4eYNf2LFVTBeKCi2h9bSgpWKkq4',
-                name: 'Castle Defense War',
-                verified: true,
-                method: 'manual_verified'
-            },
-            { 
-                appId: 'com.neowiz.cats.soup.sng', 
-                hash: 'SnSiWC_d0oxmqVG_9xoZ0A2qrYXfqhUwT0pcroZ_qid3Y-KSeu-Qd1Ot96hAxFtParg',
-                name: 'Cat Soup',
-                verified: true,
-                method: 'manual_verified'
-            },
-            { 
-                appId: 'com.ction.playergames', 
-                hash: 'whHbuRHPN4wSBlrnh8xlQcyGpInWtQOUoenofTxMQZHUPBrssWJv9_WXK2oDkd4K668u',
-                name: 'Player Games',
-                verified: true,
-                method: 'manual_verified'
-            },
-            { 
-                appId: 'com.tripledot.woodoku', 
-                hash: 'uRzP9C7cS9NpBjxtC4V-1WOFTitY--kX_oEbZisgGFqrNiLDVguw1DXhfZVcwVDOuQ',
-                name: 'Woodoku',
-                verified: true,
-                method: 'cors_proxy_position_46'
-            },
-            { 
-                appId: 'com.xxyx.sea', 
-                hash: 'Xad9K9JPX_nMp_Fb_1MfmTLDl0xOa4Iygbl225_9dR8_ZxxKUUdWauMHysebxbgJfa4',
-                name: 'Sea Battle',
-                verified: true,
-                method: 'manual_verified'
-            },
-            { 
-                appId: 'com.arumgames.bungeoppang', 
-                hash: 'yAn8eSMp-skjyG0sWgxz-AzI5Ph-5_YA4Z0Pw1OCybx7nWdtGzrcxb6Q49uyNzmnCTs',
-                name: 'Bungeoppang',
-                verified: true,
-                method: 'cors_proxy_position_41'
-            }
-        ];
-
-        // Cambio de pestañas
-        function switchTab(tabName) {
-            // Ocultar todas las pestañas
-            const tabs = document.querySelectorAll('.tab-content');
-            const buttons = document.querySelectorAll('.tab-button');
-            
-            tabs.forEach(tab => tab.classList.remove('active'));
-            buttons.forEach(btn => btn.classList.remove('active'));
-            
-            // Mostrar la pestaña seleccionada
-            document.getElementById(tabName).classList.add('active');
-            event.target.classList.add('active');
-        }
-
-        // Extracción inteligente
-        async function smartExtraction() {
-            const input = document.getElementById('smartAppId').value.trim();
+        async function findFeatureGraphic() {
+            const input = document.getElementById('appInput').value.trim();
             const appId = extractAppId(input);
             
             if (!appId) {
-                showError('❌ URL o App ID inválido');
+                showError('❌ Por favor, ingresa una URL válida de Google Play');
                 return;
             }
 
-            clearAllResults();
-            showProgress(0, 'Iniciando búsqueda inteligente...');
-
-            // Primero buscar en base de datos
-            showProgress(20, 'Verificando base de datos...');
-            const dbResult = searchInDatabase(appId);
-            
-            if (dbResult.found) {
-                showProgress(100, 'Completado');
-                showSuccess(`🎯 ¡Encontrado en base de datos! ${dbResult.data.name}`);
-                displayResult(dbResult.data.hash, 'BASE_DE_DATOS', 'very-high', 
-                    `Coincidencia exacta verificada para ${appId}`, true);
-                return;
-            }
-
-            // Si no está en la base de datos, hacer scraping
-            showProgress(40, 'Analizando contenido de Google Play...');
+            clearResults();
+            showProgress(0, 'Iniciando búsqueda...');
             
             try {
-                // Usar múltiples proxies para evitar bloqueos
-                const proxies = [
-                    `https://api.allorigins.win/get?url=${encodeURIComponent(`https://play.google.com/store/apps/details?id=${appId}&hl=en`)}`,
-                    `https://corsproxy.io/?${encodeURIComponent(`https://play.google.com/store/apps/details?id=${appId}&hl=en`)}`
-                ];
-
-                let data = null;
-                for (const proxyUrl of proxies) {
-                    try {
-                        const response = await fetch(proxyUrl);
-                        const result = await response.json();
-                        if (result.contents || result.data) {
-                            data = result.contents || result.data;
-                            break;
-                        }
-                    } catch (e) {
-                        console.log('Proxy falló, probando siguiente...');
-                    }
+                // Intentar diferentes métodos para obtener el contenido
+                const content = await fetchGooglePlayContent(appId);
+                
+                if (!content) {
+                    throw new Error('No se pudo acceder al contenido de Google Play');
                 }
 
-                if (!data) {
-                    throw new Error('No se pudo obtener contenido de la página');
-                }
-
-                showProgress(60, 'Aplicando algoritmo de análisis...');
+                showProgress(50, 'Analizando imágenes...');
                 
-                const candidates = analyzeContent(data, appId);
-                
-                showProgress(80, 'Verificando candidatos...');
+                // Encontrar todos los candidatos
+                const candidates = findImageCandidates(content);
                 
                 if (candidates.length === 0) {
-                    showProgress(100, 'Sin resultados');
-                    showWarning('⚠️ No se encontraron Feature Graphics con alta confianza');
+                    showWarning('⚠️ No se encontraron candidatos para Feature Graphic');
+                    showProgress(100, 'Búsqueda completada');
                     return;
                 }
 
-                showProgress(100, 'Completado');
+                showProgress(80, 'Evaluando candidatos...');
                 
-                const topCandidates = candidates.slice(0, 3);
-                showSuccess(`✅ Análisis completado - ${topCandidates.length} candidatos encontrados`);
+                // Analizar y clasificar candidatos
+                const analyzedCandidates = await analyzeCandidates(candidates, appId);
                 
-                topCandidates.forEach((candidate, index) => {
-                    displayResult(candidate.hash, candidate.method, candidate.confidence, candidate.reason, index === 0);
-                });
+                showProgress(100, 'Búsqueda completada');
+                displayResults(analyzedCandidates, appId);
 
             } catch (error) {
-                showProgress(100, 'Error');
                 showError(`❌ Error: ${error.message}`);
+                showProgress(100, 'Error en la búsqueda');
+                showFallbackInstructions(appId);
             }
         }
 
-        // Análisis de contenido optimizado
-        function analyzeContent(htmlContent, targetAppId) {
+        async function fetchGooglePlayContent(appId) {
+            const url = `https://play.google.com/store/apps/details?id=${appId}&hl=en`;
+            
+            // Lista de proxies CORS para probar
+            const proxies = [
+                // Proxy directo (puede funcionar en algunos casos)
+                url,
+                // Proxies CORS públicos
+                `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+                `https://corsproxy.io/?${encodeURIComponent(url)}`,
+                `https://cors-anywhere.herokuapp.com/${url}`,
+                `https://thingproxy.freeboard.io/fetch/${url}`
+            ];
+
+            for (const proxyUrl of proxies) {
+                try {
+                    console.log(`Probando: ${proxyUrl.split('?')[0]}`);
+                    
+                    const response = await fetch(proxyUrl, {
+                        method: 'GET',
+                        headers: {
+                            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+                        }
+                    });
+
+                    if (response.ok) {
+                        let content = await response.text();
+                        
+                        // Si es una respuesta JSON de proxy, extraer el contenido
+                        try {
+                            const json = JSON.parse(content);
+                            content = json.contents || json.data || content;
+                        } catch (e) {
+                            // Ya es texto plano
+                        }
+
+                        if (content && content.includes('play-lh.googleusercontent.com')) {
+                            console.log('✅ Contenido obtenido exitosamente');
+                            return content;
+                        }
+                    }
+                } catch (error) {
+                    console.log(`❌ Proxy falló: ${error.message}`);
+                    continue;
+                }
+            }
+
+            return null;
+        }
+
+        function findImageCandidates(content) {
             const candidates = [];
-            const hashPattern = /play-lh\.googleusercontent\.com\/([A-Za-z0-9_-]{40,})/gi;
+            const hashPattern = /play-lh\.googleusercontent\.com\/([A-Za-z0-9_-]{30,})/gi;
             const seenHashes = new Set();
             let match;
 
-            while ((match = hashPattern.exec(htmlContent)) !== null) {
+            while ((match = hashPattern.exec(content)) !== null) {
                 const hash = match[1];
                 
                 if (seenHashes.has(hash)) continue;
                 seenHashes.add(hash);
 
-                // Filtrar hashes muy cortos (iconos)
-                if (hash.length < 50) continue;
+                // Obtener contexto alrededor del hash
+                const contextStart = Math.max(0, match.index - 800);
+                const contextEnd = Math.min(content.length, match.index + 800);
+                const context = content.substring(contextStart, contextEnd);
 
-                // Analizar contexto
-                const contextStart = Math.max(0, match.index - 300);
-                const contextEnd = Math.min(htmlContent.length, match.index + 300);
-                const context = htmlContent.substring(contextStart, contextEnd).toLowerCase();
+                candidates.push({
+                    hash: hash,
+                    context: context,
+                    position: seenHashes.size
+                });
+            }
 
-                let score = 0;
-                let reasons = [];
+            console.log(`Encontradas ${candidates.length} imágenes únicas`);
+            return candidates;
+        }
 
-                // Scoring basado en contexto
-                if (context.includes('featuregraphic') || context.includes('feature_graphic')) {
-                    score += 100; reasons.push('Contexto "featureGraphic"');
-                }
+        async function analyzeCandidates(candidates, appId) {
+            const analyzed = [];
+
+            for (const candidate of candidates) {
+                const analysis = analyzeCandidate(candidate);
                 
-                if (context.includes('"promo"') || context.includes('promotional')) {
-                    score += 80; reasons.push('Contexto promocional');
-                }
-                
-                if (hash.length >= 60 && hash.length <= 70) {
-                    score += 40; reasons.push('Longitud óptima');
-                }
-                
-                // Penalizaciones
-                if (context.includes('w512-h512') || context.includes('icon')) {
-                    score -= 60; reasons.push('Posible ícono (-60)');
-                }
-                
-                if (context.includes('w1080-h1920')) {
-                    score -= 40; reasons.push('Screenshot móvil (-40)');
-                }
-
-                if (score > 0) {
-                    let confidence = 'low';
-                    if (score >= 80) confidence = 'very-high';
-                    else if (score >= 50) confidence = 'high';
-                    else if (score >= 20) confidence = 'medium';
-
-                    candidates.push({
-                        hash: hash,
-                        score: score,
-                        confidence: confidence,
-                        method: 'SMART_ALGORITHM',
-                        reason: reasons.join(', ')
+                if (analysis.score > 0) {
+                    analyzed.push({
+                        ...candidate,
+                        ...analysis,
+                        urls: generateImageUrls(candidate.hash)
                     });
                 }
             }
 
-            return candidates.sort((a, b) => b.score - a.score);
+            // Ordenar por score
+            analyzed.sort((a, b) => b.score - a.score);
+            
+            // Tomar solo los mejores candidatos
+            return analyzed.slice(0, 6);
         }
 
-        // Búsqueda en base de datos
-        function searchInDatabase(appId) {
-            const found = featureGraphicDatabase.find(item => item.appId === appId);
+        function analyzeCandidate(candidate) {
+            const { hash, context, position } = candidate;
+            const contextLower = context.toLowerCase();
+            
+            let score = 0;
+            let reasons = [];
+            let confidence = 'low';
+
+            // Análisis por longitud del hash
+            if (hash.length >= 70) {
+                score += 60;
+                reasons.push('Hash largo (típico de Feature Graphics)');
+            } else if (hash.length >= 50) {
+                score += 30;
+                reasons.push('Hash de longitud media');
+            } else {
+                score -= 20;
+                reasons.push('Hash corto (posible icono)');
+            }
+
+            // Análisis de contexto
+            if (contextLower.includes('featuregraphic')) {
+                score += 100;
+                reasons.push('Contexto "featureGraphic" encontrado');
+            }
+
+            if (contextLower.includes('promo') || contextLower.includes('banner')) {
+                score += 80;
+                reasons.push('Contexto promocional');
+            }
+
+            if (contextLower.includes('hero') || contextLower.includes('header')) {
+                score += 70;
+                reasons.push('Contexto de imagen principal');
+            }
+
+            // Penalizaciones por contexto negativo
+            if (contextLower.includes('w512-h512') || contextLower.includes('icon')) {
+                score -= 70;
+                reasons.push('Posible icono de app');
+            }
+
+            if (contextLower.includes('w1080-h1920') || contextLower.includes('screenshot')) {
+                score -= 50;
+                reasons.push('Posible screenshot');
+            }
+
+            if (contextLower.includes('w180-h180') || contextLower.includes('w96-h96')) {
+                score -= 80;
+                reasons.push('Dimensiones de icono pequeño');
+            }
+
+            // Análisis de posición (Feature Graphics suelen estar en posiciones 2-8)
+            if (position >= 2 && position <= 8) {
+                score += 30;
+                reasons.push(`Posición favorable (${position})`);
+            } else if (position === 1) {
+                score -= 30;
+                reasons.push('Primera posición (suele ser icono)');
+            }
+
+            // Determinar confianza
+            if (score >= 80) {
+                confidence = 'high';
+            } else if (score >= 40) {
+                confidence = 'medium';
+            }
+
             return {
-                found: !!found,
-                data: found
+                score: Math.max(0, score),
+                confidence: confidence,
+                reasons: reasons,
+                analysis: {
+                    hashLength: hash.length,
+                    position: position,
+                    contextSnippet: context.substring(0, 200) + '...'
+                }
             };
         }
 
-        function searchDatabase() {
-            const appId = document.getElementById('dbAppId').value.trim();
-            const extracted = extractAppId(appId);
-            
-            if (!extracted) {
-                showError('❌ App ID inválido');
+        function generateImageUrls(hash) {
+            return {
+                standard: `https://play-lh.googleusercontent.com/${hash}=w416-h235-rw`,
+                high: `https://play-lh.googleusercontent.com/${hash}=w832-h470-rw`,
+                full: `https://play-lh.googleusercontent.com/${hash}=w1024-h500-rw`
+            };
+        }
+
+        function displayResults(candidates, appId) {
+            if (candidates.length === 0) {
+                showWarning('⚠️ No se encontraron candidatos prometedores');
                 return;
             }
 
-            clearAllResults();
-            
-            const result = searchInDatabase(extracted);
-            
-            if (result.found) {
-                showSuccess(`✅ Encontrado: ${result.data.name}`);
-                displayResult(result.data.hash, 'BASE_DE_DATOS', 'very-high', 
-                    `Verificado previamente - ${result.data.method}`, true);
-            } else {
-                showWarning(`⚠️ No encontrado en base de datos: ${extracted}`);
+            const resultsDiv = document.getElementById('results');
+            let html = `<div class="candidates-container">
+                <h3>🎯 Candidatos encontrados para ${appId}</h3>
+                <p style="color: #666; margin-bottom: 20px;">Ordenados por probabilidad de ser Feature Graphic:</p>`;
+
+            candidates.forEach((candidate, index) => {
+                const candidateClass = candidate.confidence === 'high' ? 'likely' : 
+                                     candidate.confidence === 'medium' ? 'possible' : '';
+
+                html += `
+                    <div class="candidate ${candidateClass}">
+                        <div class="candidate-header">
+                            <h4>${index + 1}. Candidato ${candidate.confidence === 'high' ? '🏆' : candidate.confidence === 'medium' ? '⭐' : '🤔'}</h4>
+                            <span class="confidence ${candidate.confidence}">${candidate.confidence} confidence</span>
+                        </div>
+
+                        <div class="image-preview">
+                            <img class="preview-img" 
+                                 src="${candidate.urls.high}" 
+                                 alt="Candidato ${index + 1}"
+                                 onload="this.nextElementSibling.style.display='block'"
+                                 onerror="this.src='${candidate.urls.standard}'; this.nextElementSibling.innerHTML='Preview en resolución estándar'">
+                            <div class="image-info" style="display: none;">
+                                Dimensiones: 832×470 (alta resolución)
+                            </div>
+                        </div>
+
+                        <div class="url-container">
+                            <strong>URL estándar:</strong><br>
+                            ${candidate.urls.standard}
+                            <button class="copy-btn" onclick="copyToClipboard('${candidate.urls.standard}')">📋</button>
+                        </div>
+
+                        <div class="url-container">
+                            <strong>URL alta resolución:</strong><br>
+                            ${candidate.urls.high}
+                            <button class="copy-btn" onclick="copyToClipboard('${candidate.urls.high}')">📋</button>
+                        </div>
+
+                        <div class="analysis-info">
+                            <strong>Análisis:</strong><br>
+                            • Score: ${candidate.score} puntos<br>
+                            • Posición en página: ${candidate.position}<br>
+                            • Longitud hash: ${candidate.analysis.hashLength} caracteres<br>
+                            • Razones: ${candidate.reasons.join(', ')}
+                        </div>
+                    </div>
+                `;
+            });
+
+            html += '</div>';
+            resultsDiv.innerHTML = html;
+
+            // Auto-copiar el mejor candidato
+            if (candidates[0] && candidates[0].confidence === 'high') {
+                copyToClipboard(candidates[0].urls.high);
+                setTimeout(() => {
+                    showInfo('📋 El mejor candidato ha sido copiado automáticamente');
+                }, 1000);
             }
         }
 
-        // Mostrar toda la base de datos
-        function showAllDatabase() {
-            clearAllResults();
-            showInfo(`📚 Base de datos actual (${featureGraphicDatabase.length} apps):`);
-            
-            featureGraphicDatabase.forEach(item => {
-                displayResult(item.hash, 'DATABASE', 'very-high', 
-                    `${item.name} (${item.appId}) - ${item.method}`);
-            });
-        }
-
-        // Prueba de hash específico
-        function testSpecificHash() {
-            const hash = document.getElementById('manualHash').value.trim();
-            
-            if (!hash) {
-                showError('❌ Ingresa un hash válido');
-                return;
-            }
-
-            clearAllResults();
-            displayResult(hash, 'MANUAL_TEST', 'medium', 'Prueba manual de hash específico', true);
-        }
-
-        // Cargar hash de ejemplo
-        function loadExampleHash(hash) {
-            document.getElementById('manualHash').value = hash;
-            testSpecificHash();
-        }
-
-        // Probar ejemplos conocidos
-        function testKnownExamples() {
-            clearAllResults();
-            showInfo('🎯 Probando ejemplos conocidos...');
-            
-            const examples = [
-                { name: 'Woodoku', appId: 'com.tripledot.woodoku' },
-                { name: 'Bungeoppang', appId: 'com.arumgames.bungeoppang' }
-            ];
-
-            examples.forEach(example => {
-                const result = searchInDatabase(example.appId);
-                if (result.found) {
-                    displayResult(result.data.hash, 'EXAMPLE', 'very-high', 
-                        `${example.name} - Ejemplo verificado`);
-                }
-            });
-        }
-
-        // Mostrar consejos de optimización
-        function showOptimizationTips() {
-            showInfo(`💡 <strong>Consejos de optimización:</strong><br>
-                • Los Feature Graphics suelen tener hashes de 60-70 caracteres<br>
-                • Aparecen en contextos con "featureGraphic" o "promo"<br>
-                • Evita hashes con "w512-h512" (iconos) o "w1080-h1920" (screenshots)<br>
-                • La base de datos tiene ${featureGraphicDatabase.length} apps verificadas<br>
-                • Usa la búsqueda inteligente para mejores resultados`);
+        function showFallbackInstructions(appId) {
+            const html = `
+                <div class="info">
+                    <h3>🛠️ Método manual alternativo</h3>
+                    <p>Si la búsqueda automática falló, puedes intentar manualmente:</p>
+                    <ol style="margin: 15px 0; padding-left: 20px;">
+                        <li>Abre <a href="https://play.google.com/store/apps/details?id=${appId}" target="_blank">la página de la app</a></li>
+                        <li>Presiona F12 para abrir las herramientas de desarrollador</li>
+                        <li>Ve a la pestaña "Network" o "Red"</li>
+                        <li>Recarga la página (Ctrl+F5)</li>
+                        <li>Filtra por "play-lh.googleusercontent.com"</li>
+                        <li>Busca imágenes con dimensiones 832×470 o 1024×500</li>
+                    </ol>
+                    <p>El Feature Graphic suele ser una imagen horizontal grande, no cuadrada como los iconos.</p>
+                </div>
+            `;
+            document.getElementById('results').innerHTML += html;
         }
 
         // Utilidades
         function extractAppId(input) {
             if (!input) return null;
-            
-            // Si es una URL completa
             const urlMatch = input.match(/id=([a-zA-Z0-9._]+)/);
             if (urlMatch) return urlMatch[1];
-            
-            // Si es solo el app ID
             if (input.match(/^[a-zA-Z0-9._]+$/)) return input;
-            
             return null;
         }
 
-        function displayResult(hash, method, confidence, description, isWinner = false) {
-            const resultsDiv = document.getElementById('results');
-            
-            const urls = {
-                feature: `https://play-lh.googleusercontent.com/${hash}=w416-h235-rw`,
-                high: `https://play-lh.googleusercontent.com/${hash}=w1024-h500-rw`,
-                banner: `https://play-lh.googleusercontent.com/${hash}=w526-h296-rw`
-            };
-
-            const winnerClass = isWinner ? 'winner' : '';
-            const winnerIcon = isWinner ? '👑 ' : '';
-
-            const resultHtml = `
-                <div class="result-card ${winnerClass}">
-                    <div class="confidence-badge confidence-${confidence}">${confidence.replace('-', ' ')}</div>
-                    
-                    <h3>${winnerIcon}${method}</h3>
-                    <p style="color: #666; margin-bottom: 15px;">${description}</p>
-                    
-                    <div class="hash-info">
-                        <div>
-                            <p><strong>Hash:</strong></p>
-                            <code style="background: #f0f0f0; padding: 5px; border-radius: 5px; word-break: break-all; font-size: 11px;">${hash}</code>
-                            
-                            <div class="url-section">
-                                <div class="url-container">
-                                    <strong>Feature Graphic (416×235):</strong><br>
-                                    ${urls.feature}
-                                    <button class="copy-btn" onclick="copyToClipboard('${urls.feature}')">📋</button>
-                                </div>
-                                
-                                <div class="url-container">
-                                    <strong>Alta Resolución (1024×500):</strong><br>
-                                    ${urls.high}
-                                    <button class="copy-btn" onclick="copyToClipboard('${urls.high}')">📋</button>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <div class="preview-container">
-                            <img class="preview-img" src="${urls.feature}" alt="Feature Graphic Preview" 
-                                 onload="handleImageLoad(this)" 
-                                 onerror="handleImageError(this)">
-                            <div class="image-status" style="display: none; padding: 10px; color: #e17055;">
-                                ❌ Error al cargar imagen
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            `;
-
-            resultsDiv.innerHTML += resultHtml;
-
-            if (isWinner) {
-                copyToClipboard(urls.feature);
-                setTimeout(() => showSuccess('📋 Feature Graphic copiado automáticamente'), 500);
-            }
-        }
-
-        // Manejo de imágenes
-        function handleImageLoad(img) {
-            img.style.display = 'block';
-            const statusDiv = img.nextElementSibling;
-            if (statusDiv) statusDiv.style.display = 'none';
-        }
-
-        function handleImageError(img) {
-            img.style.display = 'none';
-            const statusDiv = img.nextElementSibling;
-            if (statusDiv) {
-                statusDiv.style.display = 'block';
-                statusDiv.innerHTML = '❌ No se pudo cargar la imagen';
-            }
-        }
-
-        // Utilidades de UI
-        function showProgress(percentage, message) {
+        function showProgress(percent, message) {
+            const progressDiv = document.getElementById('progress');
             const progressBar = document.getElementById('progressBar');
-            const progressFill = document.getElementById('progressFill');
+            const status = document.getElementById('status');
             
-            progressBar.style.display = 'block';
-            progressFill.style.width = percentage + '%';
+            progressDiv.style.display = 'block';
+            progressBar.style.width = percent + '%';
+            status.textContent = message;
             
-            if (percentage >= 100) {
+            if (percent >= 100) {
                 setTimeout(() => {
-                    progressBar.style.display = 'none';
-                }, 1000);
+                    progressDiv.style.display = 'none';
+                    status.textContent = '';
+                }, 2000);
             }
-        }
-
-        function showSuccess(message) {
-            const resultsDiv = document.getElementById('results');
-            resultsDiv.innerHTML += `<div class="success">${message}</div>`;
         }
 
         function showError(message) {
-            const resultsDiv = document.getElementById('results');
-            resultsDiv.innerHTML += `<div class="error">${message}</div>`;
+            document.getElementById('results').innerHTML += `<div class="error">${message}</div>`;
         }
 
         function showWarning(message) {
-            const resultsDiv = document.getElementById('results');
-            resultsDiv.innerHTML += `<div class="warning">${message}</div>`;
+            document.getElementById('results').innerHTML += `<div class="warning">${message}</div>`;
         }
 
         function showInfo(message) {
-            const resultsDiv = document.getElementById('results');
-            resultsDiv.innerHTML += `<div class="info">${message}</div>`;
+            document.getElementById('results').innerHTML += `<div class="info">${message}</div>`;
         }
 
-        function clearAllResults() {
+        function clearResults() {
             document.getElementById('results').innerHTML = '';
         }
 
-        // Copiar al portapapeles
         async function copyToClipboard(text) {
             try {
                 await navigator.clipboard.writeText(text);
-                showSuccess('📋 Copiado al portapapeles');
+                console.log('Copiado:', text);
             } catch (err) {
-                // Fallback para navegadores antiguos
                 const textArea = document.createElement('textarea');
                 textArea.value = text;
                 document.body.appendChild(textArea);
                 textArea.select();
                 document.execCommand('copy');
                 document.body.removeChild(textArea);
-                showSuccess('📋 Copiado al portapapeles');
             }
         }
 
-        // Inicialización
-        document.addEventListener('DOMContentLoaded', function() {
-            // Agregar eventos de teclado
-            document.getElementById('smartAppId').addEventListener('keypress', function(e) {
-                if (e.key === 'Enter') {
-                    smartExtraction();
-                }
-            });
-
-            document.getElementById('dbAppId').addEventListener('keypress', function(e) {
-                if (e.key === 'Enter') {
-                    searchDatabase();
-                }
-            });
-
-            document.getElementById('manualHash').addEventListener('keypress', function(e) {
-                if (e.key === 'Enter') {
-                    testSpecificHash();
-                }
-            });
-
-            showInfo('🚀 Herramienta lista. Base de datos cargada con ' + featureGraphicDatabase.length + ' apps verificadas.');
+        // Event listener
+        document.getElementById('appInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                findFeatureGraphic();
+            }
         });
     </script>
 </body>
