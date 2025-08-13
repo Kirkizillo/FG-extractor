@@ -337,6 +337,20 @@
             from { opacity: 0; transform: translateY(10px); }
             to { opacity: 1; transform: translateY(0); }
         }
+
+        @media (max-width: 768px) {
+            .quick-tools {
+                grid-template-columns: 1fr;
+            }
+            
+            .hash-info {
+                grid-template-columns: 1fr;
+            }
+            
+            h1 {
+                font-size: 2em;
+            }
+        }
     </style>
 </head>
 <body>
@@ -378,7 +392,6 @@
                 <input type="text" id="dbAppId" placeholder="com.tripledot.woodoku">
                 <button class="btn-success" onclick="searchDatabase()">🔍 Buscar en BD</button>
                 <button class="btn-secondary" onclick="showAllDatabase()">📋 Ver Toda la BD</button>
-                <button class="btn-primary" onclick="addToDatabase()">➕ Añadir a BD</button>
             </div>
         </div>
 
@@ -401,8 +414,8 @@
     </div>
 
     <script>
-        // Base de datos expandida con tus nuevos hallazgos
-        const featureGraphicDatabase = [
+        // Base de datos con los feature graphics conocidos
+        let featureGraphicDatabase = [
             { 
                 appId: 'com.allstarunion.cdw', 
                 hash: '1HKoU8esoQsulw-wPb3-OgCkGSIkRyrB9lRtzDKI4eYNf2LFVTBeKCi2h9bSgpWKkq4',
@@ -447,28 +460,21 @@
             }
         ];
 
-        // Filtros optimizados basados en tus datos reales
-        const optimizedFilters = {
-            // Hashes que definitivamente NO son Feature Graphics
-            exclusions: [
-                // Iconos conocidos de Google Play
-                'XRlCpj22PFJuFK43QcE3u5RxmoNUed7YO_zG-6F1PCqjrBIIURbTBDvTgLVVIk5pNeY',
-                // Patrones de iconos (muy cortos o formatos específicos)
-                /^.{1,35}$/, // Hashes muy cortos
-                /.*icon.*/, // Cualquier cosa con "icon"
-                /.*logo.*/, // Cualquier cosa con "logo"
-            ],
+        // Cambio de pestañas
+        function switchTab(tabName) {
+            // Ocultar todas las pestañas
+            const tabs = document.querySelectorAll('.tab-content');
+            const buttons = document.querySelectorAll('.tab-button');
             
-            // Características de Feature Graphics válidos (basado en tus ejemplos)
-            featureGraphicTraits: {
-                minLength: 50, // Todos tus ejemplos tienen 60+ caracteres
-                preferredLength: [60, 70], // Rango óptimo
-                contextKeywords: ['non-screenshot', 'banner', 'hero', 'feature'],
-                avoidKeywords: ['icon', 'logo', 'screenshot', 'gallery', 'play-pass']
-            }
-        };
+            tabs.forEach(tab => tab.classList.remove('active'));
+            buttons.forEach(btn => btn.classList.remove('active'));
+            
+            // Mostrar la pestaña seleccionada
+            document.getElementById(tabName).classList.add('active');
+            event.target.classList.add('active');
+        }
 
-        // ALGORITMO OPTIMIZADO DE BÚSQUEDA
+        // Extracción inteligente
         async function smartExtraction() {
             const input = document.getElementById('smartAppId').value.trim();
             const appId = extractAppId(input);
@@ -481,84 +487,90 @@
             clearAllResults();
             showProgress(0, 'Iniciando búsqueda inteligente...');
 
-            // PASO 1: Verificar base de datos primero (más rápido)
+            // Primero buscar en base de datos
             showProgress(20, 'Verificando base de datos...');
             const dbResult = searchInDatabase(appId);
             
             if (dbResult.found) {
                 showProgress(100, 'Completado');
                 showSuccess(`🎯 ¡Encontrado en base de datos! ${dbResult.data.name}`);
-                displayOptimizedResult(dbResult.data.hash, 'BASE_DE_DATOS', 'very-high', 
-                    `Coincidencia exacta verificada para ${appId}`);
+                displayResult(dbResult.data.hash, 'BASE_DE_DATOS', 'very-high', 
+                    `Coincidencia exacta verificada para ${appId}`, true);
                 return;
             }
 
-            // PASO 2: Búsqueda inteligente optimizada
-            showProgress(40, 'Analizando contenido...');
+            // Si no está en la base de datos, hacer scraping
+            showProgress(40, 'Analizando contenido de Google Play...');
             
             try {
-                const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(`https://play.google.com/store/apps/details?id=${appId}&hl=en`)}`;
-                const response = await fetch(proxyUrl);
-                const data = await response.json();
+                // Usar múltiples proxies para evitar bloqueos
+                const proxies = [
+                    `https://api.allorigins.win/get?url=${encodeURIComponent(`https://play.google.com/store/apps/details?id=${appId}&hl=en`)}`,
+                    `https://corsproxy.io/?${encodeURIComponent(`https://play.google.com/store/apps/details?id=${appId}&hl=en`)}`
+                ];
 
-                if (!data.contents) {
+                let data = null;
+                for (const proxyUrl of proxies) {
+                    try {
+                        const response = await fetch(proxyUrl);
+                        const result = await response.json();
+                        if (result.contents || result.data) {
+                            data = result.contents || result.data;
+                            break;
+                        }
+                    } catch (e) {
+                        console.log('Proxy falló, probando siguiente...');
+                    }
+                }
+
+                if (!data) {
                     throw new Error('No se pudo obtener contenido de la página');
                 }
 
-                showProgress(60, 'Aplicando filtros inteligentes...');
+                showProgress(60, 'Aplicando algoritmo de análisis...');
                 
-                // Aplicar algoritmo optimizado
-                const candidates = analyzeWithOptimizedAlgorithm(data.contents, appId);
+                const candidates = analyzeContent(data, appId);
                 
                 showProgress(80, 'Verificando candidatos...');
                 
                 if (candidates.length === 0) {
                     showProgress(100, 'Sin resultados');
                     showWarning('⚠️ No se encontraron Feature Graphics con alta confianza');
-                    showAlternativeSuggestions(appId);
                     return;
                 }
 
                 showProgress(100, 'Completado');
                 
-                // Mostrar solo los top 3 candidatos para evitar ruido
                 const topCandidates = candidates.slice(0, 3);
-                showSuccess(`✅ Análisis completado - ${topCandidates.length} candidatos de alta calidad encontrados`);
+                showSuccess(`✅ Análisis completado - ${topCandidates.length} candidatos encontrados`);
                 
                 topCandidates.forEach((candidate, index) => {
-                    displayOptimizedResult(candidate.hash, candidate.method, candidate.confidence, candidate.reason, index === 0);
+                    displayResult(candidate.hash, candidate.method, candidate.confidence, candidate.reason, index === 0);
                 });
-
-                // Estadísticas del análisis
-                showAnalysisStats(candidates.length, topCandidates[0].totalAnalyzed || 0);
 
             } catch (error) {
                 showProgress(100, 'Error');
                 showError(`❌ Error: ${error.message}`);
-                showAlternativeSuggestions(appId);
             }
         }
 
-        // ALGORITMO OPTIMIZADO basado en tus datos
-        function analyzeWithOptimizedAlgorithm(htmlContent, targetAppId) {
+        // Análisis de contenido optimizado
+        function analyzeContent(htmlContent, targetAppId) {
             const candidates = [];
             const hashPattern = /play-lh\.googleusercontent\.com\/([A-Za-z0-9_-]{40,})/gi;
             const seenHashes = new Set();
             let match;
-            let totalFound = 0;
 
             while ((match = hashPattern.exec(htmlContent)) !== null) {
                 const hash = match[1];
-                totalFound++;
                 
                 if (seenHashes.has(hash)) continue;
                 seenHashes.add(hash);
 
-                // FILTRO 1: Excluir hashes obviamente incorrectos
-                if (hash.length < optimizedFilters.featureGraphicTraits.minLength) continue;
-                if (hash === 'XRlCpj22PFJuFK43QcE3u5RxmoNUed7YO_zG-6F1PCqjrBIIURbTBDvTgLVVIk5pNeY') continue; // Ícono conocido
+                // Filtrar hashes muy cortos (iconos)
+                if (hash.length < 50) continue;
 
-                // FILTRO 2: Analizar contexto con mayor precisión
+                // Analizar contexto
                 const contextStart = Math.max(0, match.index - 300);
                 const contextEnd = Math.min(htmlContent.length, match.index + 300);
                 const context = htmlContent.substring(contextStart, contextEnd).toLowerCase();
@@ -566,9 +578,7 @@
                 let score = 0;
                 let reasons = [];
 
-                // SCORING MEJORADO basado en tus resultados reales
-                
-                // Feature Graphics reales aparecen en contextos específicos
+                // Scoring basado en contexto
                 if (context.includes('featuregraphic') || context.includes('feature_graphic')) {
                     score += 100; reasons.push('Contexto "featureGraphic"');
                 }
@@ -577,38 +587,19 @@
                     score += 80; reasons.push('Contexto promocional');
                 }
                 
-                // Los Feature Graphics válidos tienden a aparecer en JSON estructurado específico
-                if (context.includes('{"') && context.includes('"}') && !context.includes('[')) {
-                    score += 60; reasons.push('Objeto JSON individual');
-                }
-                
-                // Longitud óptima de hash (tus ejemplos están en 60-70 caracteres)
                 if (hash.length >= 60 && hash.length <= 70) {
-                    score += 40; reasons.push('Longitud óptima de hash');
+                    score += 40; reasons.push('Longitud óptima');
                 }
                 
-                // Evitar arrays largos de screenshots
-                const arrayMatches = (context.match(/,"/g) || []).length;
-                if (arrayMatches > 5) {
-                    score -= 50; reasons.push('En array de screenshots (-50)');
-                }
-                
-                // Penalizar contextos obvios de iconos/screenshots
+                // Penalizaciones
                 if (context.includes('w512-h512') || context.includes('icon')) {
-                    score -= 60; reasons.push('Contexto de icono (-60)');
+                    score -= 60; reasons.push('Posible ícono (-60)');
                 }
                 
-                if (context.includes('w1080-h1920') || context.includes('w1080-h2400')) {
-                    score -= 40; reasons.push('Dimensiones de screenshot (-40)');
+                if (context.includes('w1080-h1920')) {
+                    score -= 40; reasons.push('Screenshot móvil (-40)');
                 }
 
-                // Bonus por posición temprana (pero no la primera, que suele ser el ícono)
-                const position = seenHashes.size;
-                if (position >= 2 && position <= 10) {
-                    score += 30; reasons.push('Posición favorable');
-                }
-
-                // Solo considerar candidatos con score positivo
                 if (score > 0) {
                     let confidence = 'low';
                     if (score >= 80) confidence = 'very-high';
@@ -619,21 +610,120 @@
                         hash: hash,
                         score: score,
                         confidence: confidence,
-                        reasons: reasons,
                         method: 'SMART_ALGORITHM',
-                        reason: reasons.join(', '),
-                        position: position,
-                        totalAnalyzed: totalFound
+                        reason: reasons.join(', ')
                     });
                 }
             }
 
-            // Ordenar por score y retornar solo los mejores
-            candidates.sort((a, b) => b.score - a.score);
-            return candidates.slice(0, 5); // Solo top 5 para evitar ruido
+            return candidates.sort((a, b) => b.score - a.score);
         }
 
-        function displayOptimizedResult(hash, method, confidence, description, isWinner = false) {
+        // Búsqueda en base de datos
+        function searchInDatabase(appId) {
+            const found = featureGraphicDatabase.find(item => item.appId === appId);
+            return {
+                found: !!found,
+                data: found
+            };
+        }
+
+        function searchDatabase() {
+            const appId = document.getElementById('dbAppId').value.trim();
+            const extracted = extractAppId(appId);
+            
+            if (!extracted) {
+                showError('❌ App ID inválido');
+                return;
+            }
+
+            clearAllResults();
+            
+            const result = searchInDatabase(extracted);
+            
+            if (result.found) {
+                showSuccess(`✅ Encontrado: ${result.data.name}`);
+                displayResult(result.data.hash, 'BASE_DE_DATOS', 'very-high', 
+                    `Verificado previamente - ${result.data.method}`, true);
+            } else {
+                showWarning(`⚠️ No encontrado en base de datos: ${extracted}`);
+            }
+        }
+
+        // Mostrar toda la base de datos
+        function showAllDatabase() {
+            clearAllResults();
+            showInfo(`📚 Base de datos actual (${featureGraphicDatabase.length} apps):`);
+            
+            featureGraphicDatabase.forEach(item => {
+                displayResult(item.hash, 'DATABASE', 'very-high', 
+                    `${item.name} (${item.appId}) - ${item.method}`);
+            });
+        }
+
+        // Prueba de hash específico
+        function testSpecificHash() {
+            const hash = document.getElementById('manualHash').value.trim();
+            
+            if (!hash) {
+                showError('❌ Ingresa un hash válido');
+                return;
+            }
+
+            clearAllResults();
+            displayResult(hash, 'MANUAL_TEST', 'medium', 'Prueba manual de hash específico', true);
+        }
+
+        // Cargar hash de ejemplo
+        function loadExampleHash(hash) {
+            document.getElementById('manualHash').value = hash;
+            testSpecificHash();
+        }
+
+        // Probar ejemplos conocidos
+        function testKnownExamples() {
+            clearAllResults();
+            showInfo('🎯 Probando ejemplos conocidos...');
+            
+            const examples = [
+                { name: 'Woodoku', appId: 'com.tripledot.woodoku' },
+                { name: 'Bungeoppang', appId: 'com.arumgames.bungeoppang' }
+            ];
+
+            examples.forEach(example => {
+                const result = searchInDatabase(example.appId);
+                if (result.found) {
+                    displayResult(result.data.hash, 'EXAMPLE', 'very-high', 
+                        `${example.name} - Ejemplo verificado`);
+                }
+            });
+        }
+
+        // Mostrar consejos de optimización
+        function showOptimizationTips() {
+            showInfo(`💡 <strong>Consejos de optimización:</strong><br>
+                • Los Feature Graphics suelen tener hashes de 60-70 caracteres<br>
+                • Aparecen en contextos con "featureGraphic" o "promo"<br>
+                • Evita hashes con "w512-h512" (iconos) o "w1080-h1920" (screenshots)<br>
+                • La base de datos tiene ${featureGraphicDatabase.length} apps verificadas<br>
+                • Usa la búsqueda inteligente para mejores resultados`);
+        }
+
+        // Utilidades
+        function extractAppId(input) {
+            if (!input) return null;
+            
+            // Si es una URL completa
+            const urlMatch = input.match(/id=([a-zA-Z0-9._]+)/);
+            if (urlMatch) return urlMatch[1];
+            
+            // Si es solo el app ID
+            if (input.match(/^[a-zA-Z0-9._]+$/)) return input;
+            
+            return null;
+        }
+
+        function displayResult(hash, method, confidence, description, isWinner = false) {
             const resultsDiv = document.getElementById('results');
             
             const urls = {
@@ -681,44 +771,112 @@
                             </div>
                         </div>
                     </div>
-                    
-                    ${isWinner ? '<button class="btn-success" onclick="saveToDatabase(\'' + hash + '\')">💾 Guardar en BD</button>' : ''}
                 </div>
             `;
 
             resultsDiv.innerHTML += resultHtml;
 
-            // Auto-copiar el ganador
             if (isWinner) {
                 copyToClipboard(urls.feature);
-                setTimeout(() => showSuccess('📋 Feature Graphic del ganador copiado automáticamente'), 500);
+                setTimeout(() => showSuccess('📋 Feature Graphic copiado automáticamente'), 500);
             }
         }
 
-        function searchInDatabase(appId) {
-            const found = featureGraphicDatabase.find(item => item.appId === appId);
-            return {
-                found: !!found,
-                data: found
-            };
+        // Manejo de imágenes
+        function handleImageLoad(img) {
+            img.style.display = 'block';
+            const statusDiv = img.nextElementSibling;
+            if (statusDiv) statusDiv.style.display = 'none';
         }
 
-        function searchDatabase() {
-            const appId = document.getElementById('dbAppId').value.trim();
-            const extracted = extractAppId(appId);
-            
-            if (!extracted) {
-                showError('❌ App ID inválido');
-                return;
+        function handleImageError(img) {
+            img.style.display = 'none';
+            const statusDiv = img.nextElementSibling;
+            if (statusDiv) {
+                statusDiv.style.display = 'block';
+                statusDiv.innerHTML = '❌ No se pudo cargar la imagen';
             }
+        }
 
-            clearAllResults();
+        // Utilidades de UI
+        function showProgress(percentage, message) {
+            const progressBar = document.getElementById('progressBar');
+            const progressFill = document.getElementById('progressFill');
             
-            const result = searchInDatabase(extracted);
+            progressBar.style.display = 'block';
+            progressFill.style.width = percentage + '%';
             
-            if (result.found) {
-                showSuccess(`✅ Encontrado: ${result.data.name}`);
-                displayOptimizedResult(result.data.hash, 'BASE_DE_DATOS', 'very-high', 
-                    `Verificado previamente - ${result.data.method}`, true);
-            } else {
-                showWarning
+            if (percentage >= 100) {
+                setTimeout(() => {
+                    progressBar.style.display = 'none';
+                }, 1000);
+            }
+        }
+
+        function showSuccess(message) {
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML += `<div class="success">${message}</div>`;
+        }
+
+        function showError(message) {
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML += `<div class="error">${message}</div>`;
+        }
+
+        function showWarning(message) {
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML += `<div class="warning">${message}</div>`;
+        }
+
+        function showInfo(message) {
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML += `<div class="info">${message}</div>`;
+        }
+
+        function clearAllResults() {
+            document.getElementById('results').innerHTML = '';
+        }
+
+        // Copiar al portapapeles
+        async function copyToClipboard(text) {
+            try {
+                await navigator.clipboard.writeText(text);
+                showSuccess('📋 Copiado al portapapeles');
+            } catch (err) {
+                // Fallback para navegadores antiguos
+                const textArea = document.createElement('textarea');
+                textArea.value = text;
+                document.body.appendChild(textArea);
+                textArea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textArea);
+                showSuccess('📋 Copiado al portapapeles');
+            }
+        }
+
+        // Inicialización
+        document.addEventListener('DOMContentLoaded', function() {
+            // Agregar eventos de teclado
+            document.getElementById('smartAppId').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    smartExtraction();
+                }
+            });
+
+            document.getElementById('dbAppId').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    searchDatabase();
+                }
+            });
+
+            document.getElementById('manualHash').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    testSpecificHash();
+                }
+            });
+
+            showInfo('🚀 Herramienta lista. Base de datos cargada con ' + featureGraphicDatabase.length + ' apps verificadas.');
+        });
+    </script>
+</body>
+</html>
