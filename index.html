@@ -11,21 +11,28 @@
             box-sizing: border-box;
         }
         body {
-            font-family: Arial, sans-serif;
-            background: #f5f5f5;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
             padding: 20px;
         }
         .container {
-            max-width: 800px;
+            max-width: 900px;
             margin: 0 auto;
             background: white;
-            padding: 30px;
-            border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
         }
         h1 {
-            color: #333;
-            margin-bottom: 20px;
+            color: #2d3748;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+        .subtitle {
+            color: #718096;
+            margin-bottom: 30px;
+            font-size: 14px;
         }
         .input-group {
             margin-bottom: 20px;
@@ -33,88 +40,140 @@
         label {
             display: block;
             margin-bottom: 8px;
-            color: #666;
-            font-weight: bold;
+            color: #4a5568;
+            font-weight: 600;
+            font-size: 14px;
         }
         input[type="text"] {
             width: 100%;
-            padding: 12px;
-            border: 2px solid #ddd;
-            border-radius: 4px;
-            font-size: 14px;
+            padding: 14px;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 15px;
+            transition: border-color 0.2s;
+        }
+        input[type="text"]:focus {
+            outline: none;
+            border-color: #667eea;
         }
         button {
-            background: #01875f;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
-            padding: 12px 30px;
+            padding: 14px 32px;
             border: none;
-            border-radius: 4px;
+            border-radius: 8px;
             cursor: pointer;
             font-size: 16px;
-            font-weight: bold;
+            font-weight: 600;
+            transition: transform 0.2s;
         }
         button:hover {
-            background: #016d4b;
+            transform: translateY(-2px);
         }
         button:disabled {
-            background: #ccc;
+            background: #cbd5e0;
             cursor: not-allowed;
+            transform: none;
         }
         #results {
             margin-top: 30px;
         }
-        .candidate {
+        .result-header {
+            color: #2d3748;
+            margin-bottom: 20px;
+            font-size: 18px;
+        }
+        .feature-graphic {
+            background: #f7fafc;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 15px;
+            border: 2px solid #e2e8f0;
+        }
+        .feature-graphic img {
+            width: 100%;
+            border-radius: 6px;
             margin: 15px 0;
-            padding: 15px;
-            background: #f9f9f9;
-            border-radius: 4px;
-            border-left: 4px solid #01875f;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
         }
-        .candidate img {
-            max-width: 100%;
-            display: block;
-            margin: 10px 0;
-            border-radius: 4px;
+        .graphic-info {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
         }
-        .candidate-info {
+        .dimensions {
+            font-size: 13px;
+            color: #718096;
+            font-weight: 600;
+        }
+        .badge {
+            background: #48bb78;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 12px;
             font-size: 12px;
-            color: #666;
-            margin-bottom: 8px;
+            font-weight: 600;
         }
         .download-btn {
-            background: #0066cc;
-            padding: 8px 16px;
+            background: #4299e1;
+            padding: 10px 20px;
             font-size: 14px;
             margin-top: 10px;
+            border-radius: 6px;
         }
         .download-btn:hover {
-            background: #0052a3;
+            background: #3182ce;
+        }
+        .url-box {
+            background: #edf2f7;
+            padding: 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            color: #4a5568;
+            word-break: break-all;
+            margin-top: 10px;
+            font-family: 'Courier New', monospace;
         }
         .error {
-            color: #d32f2f;
-            padding: 15px;
-            background: #ffebee;
-            border-radius: 4px;
+            color: #e53e3e;
+            padding: 16px;
+            background: #fff5f5;
+            border-radius: 8px;
+            border-left: 4px solid #e53e3e;
             margin-top: 15px;
         }
         .loading {
             text-align: center;
-            padding: 20px;
-            color: #666;
+            padding: 40px;
+            color: #4a5568;
+        }
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
         }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>🎨 Extractor de Feature Graphics</h1>
-        <p style="color: #666; margin-bottom: 20px;">Extrae feature graphics ocultos de apps de Google Play</p>
+        <p class="subtitle">Extrae feature graphics ocultos de apps de Google Play Store</p>
         
         <div class="input-group">
-            <label for="appUrl">URL o Package ID de la app:</label>
+            <label for="appUrl">URL o Package ID:</label>
             <input 
                 type="text" 
                 id="appUrl" 
-                placeholder="https://play.google.com/store/apps/details?id=com.example.app o com.example.app"
+                placeholder="com.example.app o https://play.google.com/store/apps/details?id=com.example.app"
             >
         </div>
         
@@ -130,7 +189,7 @@
             const button = document.getElementById('extractBtn');
             
             if (!input) {
-                resultsDiv.innerHTML = '<div class="error">Por favor, ingresa una URL o package ID</div>';
+                resultsDiv.innerHTML = '<div class="error">⚠️ Por favor, ingresa una URL o package ID</div>';
                 return;
             }
             
@@ -141,136 +200,119 @@
                 if (match) {
                     packageId = match[1];
                 } else {
-                    resultsDiv.innerHTML = '<div class="error">URL inválida</div>';
+                    resultsDiv.innerHTML = '<div class="error">⚠️ URL inválida</div>';
                     return;
                 }
             }
             
             button.disabled = true;
-            resultsDiv.innerHTML = '<div class="loading">🔍 Buscando feature graphics...</div>';
+            resultsDiv.innerHTML = '<div class="loading"><div class="spinner"></div>Analizando página de Google Play...</div>';
             
             try {
-                // Usar CORS proxy
+                // Usar CORS proxy - puedes cambiar a otro si prefieres
                 const proxyUrl = 'https://api.allorigins.win/raw?url=';
                 const targetUrl = `https://play.google.com/store/apps/details?id=${packageId}&hl=en&gl=US`;
+                
                 const response = await fetch(proxyUrl + encodeURIComponent(targetUrl));
                 
                 if (!response.ok) {
-                    throw new Error('Error al cargar la página');
+                    throw new Error('Error al cargar la página de Google Play');
                 }
                 
                 const html = await response.text();
                 
-                // Método 1: Buscar en el script data
-                const candidates = [];
+                // Buscar todas las URLs de play-lh.googleusercontent.com
+                const urlPattern = /https:\/\/play-lh\.googleusercontent\.com\/[A-Za-z0-9_-]+(?:=[ws]\d+-[hd]\d+-rw)?/g;
+                const matches = html.match(urlPattern);
                 
-                // Buscar patrones de imágenes de alta resolución
-                const imagePatterns = [
-                    // Feature graphic típico (1024x500 aproximadamente)
-                    /https:\/\/[^"'\s]+\.googleusercontent\.com\/[^"'\s]+/g,
-                    /https:\/\/[^"'\s]+\.ggpht\.com\/[^"'\s]+/g
-                ];
+                if (!matches || matches.length === 0) {
+                    throw new Error('No se encontraron imágenes de Google Play');
+                }
                 
-                for (const pattern of imagePatterns) {
-                    const matches = html.match(pattern);
-                    if (matches) {
-                        matches.forEach(url => {
-                            // Limpiar y normalizar URL
-                            url = url.replace(/\\u003d/g, '=').replace(/\\/g, '');
-                            
-                            // Filtrar por posibles feature graphics
-                            if (!url.includes('=s') && !url.includes('screenshot')) {
-                                candidates.push(url);
-                            }
-                        });
+                // Procesar URLs: eliminar duplicados y limpiar parámetros
+                const imageUrls = [...new Set(matches)].map(url => {
+                    // Remover parámetros de dimensión para obtener imagen original
+                    const baseUrl = url.split('=')[0];
+                    return baseUrl;
+                });
+                
+                resultsDiv.innerHTML = '<div class="loading"><div class="spinner"></div>Validando dimensiones...</div>';
+                
+                // Validar cada imagen para encontrar el feature graphic (1024x500)
+                const featureGraphics = [];
+                
+                for (const url of imageUrls) {
+                    try {
+                        const dims = await getImageDimensions(url);
+                        const ratio = dims.width / dims.height;
+                        
+                        // Feature graphic: 1024x500 (ratio 2.048)
+                        // Permitir margen de error
+                        if (ratio >= 1.9 && ratio <= 2.2 && dims.width >= 800) {
+                            featureGraphics.push({
+                                url: url,
+                                width: dims.width,
+                                height: dims.height,
+                                ratio: ratio
+                            });
+                        }
+                    } catch (e) {
+                        // Ignorar imágenes que no cargan
+                        console.log('Error cargando:', url);
                     }
                 }
                 
-                // Eliminar duplicados
-                const uniqueCandidates = [...new Set(candidates)];
+                // Ordenar por tamaño (más grande primero)
+                featureGraphics.sort((a, b) => (b.width * b.height) - (a.width * a.height));
                 
-                // Buscar en contextos específicos (como mencionaste)
-                const parser = new DOMParser();
-                const doc = parser.parseFromString(html, 'text/html');
-                const scripts = doc.querySelectorAll('script');
-                
-                scripts.forEach((script, index) => {
-                    const content = script.textContent;
-                    if (content && content.includes('1024') || content.includes('500')) {
-                        const imageMatches = content.match(/https:\/\/[^"'\s,\]]+\.(?:googleusercontent|ggpht)\.com\/[^"'\s,\]]+/g);
-                        if (imageMatches) {
-                            imageMatches.forEach(url => {
-                                url = url.replace(/\\u003d/g, '=').replace(/\\/g, '');
-                                uniqueCandidates.push(url);
-                            });
-                        }
-                    }
-                });
-                
-                // Filtrar y procesar candidatos
-                const finalCandidates = [...new Set(uniqueCandidates)]
-                    .filter(url => {
-                        // Filtrar URLs que probablemente sean feature graphics
-                        return url.includes('googleusercontent.com') || url.includes('ggpht.com');
-                    })
-                    .slice(0, 50); // Limitar a 50 candidatos
-                
-                if (finalCandidates.length === 0) {
-                    resultsDiv.innerHTML = '<div class="error">No se encontraron feature graphics. La app podría no tener uno cargado.</div>';
-                    button.disabled = false;
+                if (featureGraphics.length === 0) {
+                    resultsDiv.innerHTML = `
+                        <div class="error">
+                            ❌ No se encontró el feature graphic para esta app.<br><br>
+                            <strong>Posibles causas:</strong><br>
+                            • La app no tiene feature graphic cargado<br>
+                            • El CORS proxy está bloqueado (intenta recargar)<br>
+                            • La app fue eliminada o no existe
+                        </div>
+                    `;
                     return;
                 }
                 
-                // Mostrar candidatos y validar dimensiones
-                resultsDiv.innerHTML = '<h3>✅ Candidatos encontrados:</h3>';
+                // Mostrar resultados
+                resultsDiv.innerHTML = `<h3 class="result-header">✅ Feature Graphic${featureGraphics.length > 1 ? 's' : ''} encontrado${featureGraphics.length > 1 ? 's' : ''}:</h3>`;
                 
-                let validCount = 0;
-                for (let i = 0; i < finalCandidates.length; i++) {
-                    const url = finalCandidates[i];
-                    // Intentar forzar dimensiones de feature graphic
-                    const testUrls = [
-                        url,
-                        url.replace(/=.*$/, '=w1024'),
-                        url.replace(/=.*$/, '=h500'),
-                        url + (url.includes('=') ? '' : '=w1024-h500')
-                    ];
-                    
-                    for (const testUrl of testUrls) {
-                        try {
-                            const dimensions = await getImageDimensions(testUrl);
-                            const aspectRatio = dimensions.width / dimensions.height;
-                            
-                            // Feature graphic es 1024x500 (ratio 2.048)
-                            if (aspectRatio > 1.8 && aspectRatio < 2.3 && dimensions.width >= 500) {
-                                validCount++;
-                                const candidateDiv = document.createElement('div');
-                                candidateDiv.className = 'candidate';
-                                candidateDiv.innerHTML = `
-                                    <div class="candidate-info">
-                                        <strong>Candidato #${validCount}</strong> - 
-                                        ${dimensions.width}x${dimensions.height}px 
-                                        (Ratio: ${aspectRatio.toFixed(2)})
-                                    </div>
-                                    <img src="${testUrl}" alt="Feature Graphic">
-                                    <button class="download-btn" onclick="downloadImage('${testUrl}', '${packageId}_feature_${validCount}.png')">
-                                        ⬇️ Descargar
-                                    </button>
-                                `;
-                                resultsDiv.appendChild(candidateDiv);
-                                break; // No probar más variantes de esta URL
-                            }
-                        } catch (e) {
-                            // Ignorar errores de carga de imagen
-                        }
-                    }
-                }
-                
-                if (validCount === 0) {
-                    resultsDiv.innerHTML += '<div class="error">No se encontraron imágenes con dimensiones de feature graphic (1024x500)</div>';
-                }
+                featureGraphics.forEach((graphic, index) => {
+                    const graphicDiv = document.createElement('div');
+                    graphicDiv.className = 'feature-graphic';
+                    graphicDiv.innerHTML = `
+                        <div class="graphic-info">
+                            <div>
+                                <span class="dimensions">${graphic.width} × ${graphic.height}px</span>
+                                <span style="color: #a0aec0; margin-left: 8px;">(Ratio: ${graphic.ratio.toFixed(2)})</span>
+                            </div>
+                            <span class="badge">Feature Graphic</span>
+                        </div>
+                        <img src="${graphic.url}" alt="Feature Graphic ${index + 1}" loading="lazy">
+                        <button class="download-btn" onclick="downloadImage('${graphic.url}', '${packageId}_feature_graphic_${graphic.width}x${graphic.height}.png')">
+                            ⬇️ Descargar ${graphic.width}x${graphic.height}
+                        </button>
+                        <div class="url-box" onclick="copyToClipboard('${graphic.url}')" style="cursor: pointer;" title="Click para copiar">
+                            📋 ${graphic.url}
+                        </div>
+                    `;
+                    resultsDiv.appendChild(graphicDiv);
+                });
                 
             } catch (error) {
-                resultsDiv.innerHTML = `<div class="error">Error: ${error.message}<br><br>Intenta con otro CORS proxy o verifica la URL.</div>`;
+                resultsDiv.innerHTML = `
+                    <div class="error">
+                        ❌ <strong>Error:</strong> ${error.message}<br><br>
+                        <strong>Soluciones:</strong><br>
+                        • Verifica que el package ID sea correcto<br>
+                        • Intenta nuevamente en unos segundos<br>
+                        • Usa otro CORS proxy si persiste el problema
+                    </div>
+                `;
             } finally {
                 button.disabled = false;
             }
@@ -279,27 +321,49 @@
         function getImageDimensions(url) {
             return new Promise((resolve, reject) => {
                 const img = new Image();
+                img.crossOrigin = "anonymous";
+                
+                const timeout = setTimeout(() => {
+                    reject(new Error('Timeout'));
+                }, 5000);
+                
                 img.onload = () => {
-                    resolve({ width: img.naturalWidth, height: img.naturalHeight });
+                    clearTimeout(timeout);
+                    resolve({ 
+                        width: img.naturalWidth, 
+                        height: img.naturalHeight 
+                    });
                 };
-                img.onerror = reject;
+                
+                img.onerror = () => {
+                    clearTimeout(timeout);
+                    reject(new Error('Failed to load'));
+                };
+                
                 img.src = url;
             });
         }
         
         function downloadImage(url, filename) {
-            fetch(url)
-                .then(response => response.blob())
-                .then(blob => {
-                    const link = document.createElement('a');
-                    link.href = URL.createObjectURL(blob);
-                    link.download = filename;
-                    link.click();
-                })
-                .catch(err => alert('Error al descargar: ' + err.message));
+            // Método 1: Descargar directamente
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = filename;
+            link.target = '_blank';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
         }
         
-        // Permitir Enter para buscar
+        function copyToClipboard(text) {
+            navigator.clipboard.writeText(text).then(() => {
+                alert('✅ URL copiada al portapapeles');
+            }).catch(() => {
+                alert('❌ No se pudo copiar. Selecciona manualmente el texto.');
+            });
+        }
+        
+        // Enter para buscar
         document.getElementById('appUrl').addEventListener('keypress', function(e) {
             if (e.key === 'Enter') {
                 extractFeatureGraphic();
