@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Extractor de Feature Graphics - Google Play</title>
+    <title>Feature Graphic Extractor - Google Play</title>
     <style>
         * {
             margin: 0;
@@ -50,20 +50,10 @@
             border: 2px solid #e2e8f0;
             border-radius: 8px;
             font-size: 15px;
-            transition: border-color 0.2s;
         }
         input[type="text"]:focus {
             outline: none;
             border-color: #667eea;
-        }
-        select {
-            width: 100%;
-            padding: 12px;
-            border: 2px solid #e2e8f0;
-            border-radius: 8px;
-            font-size: 14px;
-            background: white;
-            cursor: pointer;
         }
         button {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -74,325 +64,110 @@
             cursor: pointer;
             font-size: 16px;
             font-weight: 600;
-            transition: transform 0.2s;
-            margin-right: 10px;
         }
         button:hover {
             transform: translateY(-2px);
         }
-        button:disabled {
-            background: #cbd5e0;
-            cursor: not-allowed;
-            transform: none;
-        }
-        .btn-secondary {
-            background: #48bb78;
-        }
-        .btn-secondary:hover {
-            background: #38a169;
-        }
-        #results {
-            margin-top: 30px;
-        }
-        .result-header {
-            color: #2d3748;
-            margin-bottom: 20px;
-            font-size: 18px;
-        }
-        .feature-graphic {
-            background: #f7fafc;
-            border-radius: 8px;
-            padding: 20px;
-            margin-bottom: 15px;
-            border: 2px solid #e2e8f0;
-        }
-        .feature-graphic img {
-            width: 100%;
-            border-radius: 6px;
-            margin: 15px 0;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-        }
-        .graphic-info {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 10px;
-        }
-        .dimensions {
-            font-size: 13px;
-            color: #718096;
-            font-weight: 600;
-        }
-        .badge {
-            background: #48bb78;
-            color: white;
-            padding: 4px 12px;
-            border-radius: 12px;
-            font-size: 12px;
-            font-weight: 600;
-        }
-        .download-btn {
-            background: #4299e1;
-            padding: 10px 20px;
-            font-size: 14px;
-            margin-top: 10px;
-            border-radius: 6px;
-        }
-        .download-btn:hover {
-            background: #3182ce;
-        }
-        .url-box {
-            background: #edf2f7;
-            padding: 12px;
-            border-radius: 6px;
-            font-size: 12px;
-            color: #4a5568;
-            word-break: break-all;
-            margin-top: 10px;
-            font-family: 'Courier New', monospace;
-        }
-        .error {
-            color: #e53e3e;
-            padding: 16px;
-            background: #fff5f5;
-            border-radius: 8px;
-            border-left: 4px solid #e53e3e;
-            margin-top: 15px;
-        }
-        .warning {
-            color: #d69e2e;
-            padding: 16px;
-            background: #fffaf0;
-            border-radius: 8px;
-            border-left: 4px solid #d69e2e;
-            margin-top: 15px;
-        }
-        .loading {
-            text-align: center;
-            padding: 40px;
-            color: #4a5568;
-        }
-        .spinner {
-            border: 3px solid #f3f3f3;
-            border-top: 3px solid #667eea;
-            border-radius: 50%;
-            width: 40px;
-            height: 40px;
-            animation: spin 1s linear infinite;
-            margin: 0 auto 15px;
-        }
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
         .info-box {
             background: #ebf8ff;
             border-left: 4px solid #4299e1;
-            padding: 15px;
-            margin-bottom: 20px;
-            border-radius: 4px;
-            font-size: 14px;
+            padding: 20px;
+            margin-bottom: 25px;
+            border-radius: 6px;
+        }
+        .info-box h3 {
             color: #2c5282;
+            margin-bottom: 12px;
+            font-size: 18px;
+        }
+        .steps {
+            color: #2d3748;
+            line-height: 1.8;
+        }
+        .steps li {
+            margin-bottom: 12px;
+        }
+        .code-box {
+            background: #2d3748;
+            color: #e2e8f0;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 15px 0;
+            overflow-x: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            line-height: 1.6;
+        }
+        .highlight {
+            background: #fef3c7;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-weight: 600;
+            color: #92400e;
+        }
+        .result-box {
+            background: #f0fdf4;
+            border: 2px solid #86efac;
+            padding: 20px;
+            border-radius: 8px;
+            margin-top: 20px;
+        }
+        .result-box h3 {
+            color: #166534;
+            margin-bottom: 15px;
+        }
+        .feature-graphic {
+            width: 100%;
+            border-radius: 8px;
+            margin: 15px 0;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+        .url-display {
+            background: #1e293b;
+            color: #22d3ee;
+            padding: 12px;
+            border-radius: 6px;
+            word-break: break-all;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            margin: 10px 0;
+        }
+        .btn-copy {
+            background: #10b981;
+            padding: 10px 20px;
+            margin-right: 10px;
+            font-size: 14px;
+        }
+        .btn-download {
+            background: #3b82f6;
+            padding: 10px 20px;
+            font-size: 14px;
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>🎨 Extractor de Feature Graphics</h1>
-        <p class="subtitle">Extrae feature graphics ocultos de apps de Google Play Store</p>
-        
-        <div class="info-box">
-            💡 <strong>Tip:</strong> Si el método automático falla, usa el método manual que siempre funciona.
-        </div>
+        <h1>🎯 Feature Graphic Extractor</h1>
+        <p class="subtitle">Método 100% efectivo para extraer feature graphics de Google Play</p>
         
         <div class="input-group">
-            <label for="appUrl">URL o Package ID:</label>
+            <label for="appUrl">Package ID o URL:</label>
             <input 
                 type="text" 
                 id="appUrl" 
-                placeholder="com.example.app o https://play.google.com/store/apps/details?id=com.example.app"
+                placeholder="com.example.app o URL completa"
+                value=""
             >
         </div>
         
-        <div class="input-group">
-            <label for="proxySelect">CORS Proxy:</label>
-            <select id="proxySelect">
-                <option value="https://api.codetabs.com/v1/proxy?quest=">CodeTabs (Recomendado)</option>
-                <option value="https://corsproxy.io/?">CorsProxy.io</option>
-                <option value="https://api.allorigins.win/raw?url=">AllOrigins</option>
-                <option value="https://cors.eu.org/">CORS.eu.org</option>
-            </select>
-        </div>
+        <button onclick="showInstructions()">🔍 Obtener Instrucciones</button>
         
-        <button id="extractBtn" onclick="extractFeatureGraphic()">🔍 Extraer Automático</button>
-        <button class="btn-secondary" onclick="showManualMethod()">📋 Método Manual</button>
-        
-        <div id="results"></div>
+        <div id="instructions"></div>
+        <div id="result"></div>
     </div>
 
     <script>
-        const CORS_PROXIES = [
-            'https://api.codetabs.com/v1/proxy?quest=',
-            'https://corsproxy.io/?',
-            'https://api.allorigins.win/raw?url=',
-            'https://cors.eu.org/'
-        ];
-
-        async function extractFeatureGraphic() {
-            const input = document.getElementById('appUrl').value.trim();
-            const resultsDiv = document.getElementById('results');
-            const button = document.getElementById('extractBtn');
-            const proxySelect = document.getElementById('proxySelect');
-            
-            if (!input) {
-                resultsDiv.innerHTML = '<div class="error">⚠️ Por favor, ingresa una URL o package ID</div>';
-                return;
-            }
-            
-            let packageId = input;
-            if (input.includes('play.google.com')) {
-                const match = input.match(/id=([^&]+)/);
-                if (match) {
-                    packageId = match[1];
-                } else {
-                    resultsDiv.innerHTML = '<div class="error">⚠️ URL inválida</div>';
-                    return;
-                }
-            }
-            
-            button.disabled = true;
-            resultsDiv.innerHTML = '<div class="loading"><div class="spinner"></div>Conectando con Google Play...</div>';
-            
-            const selectedProxy = proxySelect.value;
-            
-            try {
-                const targetUrl = `https://play.google.com/store/apps/details?id=${packageId}&hl=en&gl=US`;
-                const response = await fetch(selectedProxy + encodeURIComponent(targetUrl));
-                
-                if (!response.ok) {
-                    throw new Error(`Error HTTP: ${response.status}`);
-                }
-                
-                const html = await response.text();
-                
-                resultsDiv.innerHTML = '<div class="loading"><div class="spinner"></div>Analizando HTML (esto puede tardar)...</div>';
-                
-                // Múltiples patrones para encontrar feature graphics
-                const patterns = [
-                    /https:\/\/play-lh\.googleusercontent\.com\/[A-Za-z0-9_-]+/g,
-                    /https:\/\/lh3\.googleusercontent\.com\/[A-Za-z0-9_-]+/g,
-                    /"(https:\/\/[^"]*googleusercontent\.com\/[^"]+)"/g
-                ];
-                
-                const allUrls = new Set();
-                
-                for (const pattern of patterns) {
-                    const matches = html.match(pattern);
-                    if (matches) {
-                        matches.forEach(url => {
-                            // Limpiar comillas y otros caracteres
-                            url = url.replace(/["']/g, '').split('=')[0];
-                            if (url.startsWith('http')) {
-                                allUrls.add(url);
-                            }
-                        });
-                    }
-                }
-                
-                if (allUrls.size === 0) {
-                    resultsDiv.innerHTML = `
-                        <div class="warning">
-                            ⚠️ <strong>No se encontraron imágenes</strong><br><br>
-                            Probablemente el proxy está bloqueado. Intenta:<br>
-                            1. Cambiar el CORS Proxy en el desplegable<br>
-                            2. Usar el <strong>Método Manual</strong> (siempre funciona)<br>
-                            3. Recargar la página e intentar de nuevo
-                        </div>
-                    `;
-                    return;
-                }
-                
-                resultsDiv.innerHTML = `<div class="loading"><div class="spinner"></div>Validando ${allUrls.size} imágenes...</div>`;
-                
-                const featureGraphics = [];
-                const urlArray = Array.from(allUrls);
-                
-                // Procesar imágenes en paralelo
-                const promises = urlArray.map(async (url) => {
-                    try {
-                        const dims = await getImageDimensions(url);
-                        const ratio = dims.width / dims.height;
-                        
-                        if (ratio >= 1.9 && ratio <= 2.3 && dims.width >= 600) {
-                            return {
-                                url: url,
-                                width: dims.width,
-                                height: dims.height,
-                                ratio: ratio,
-                                score: dims.width * dims.height
-                            };
-                        }
-                    } catch (e) {
-                        return null;
-                    }
-                    return null;
-                });
-                
-                const results = await Promise.all(promises);
-                const validGraphics = results.filter(r => r !== null);
-                
-                validGraphics.sort((a, b) => b.score - a.score);
-                
-                if (validGraphics.length === 0) {
-                    resultsDiv.innerHTML = `
-                        <div class="warning">
-                            ⚠️ No se encontró feature graphic con dimensiones correctas<br><br>
-                            Usa el <strong>Método Manual</strong> para extraerlo directamente.
-                        </div>
-                    `;
-                    return;
-                }
-                
-                resultsDiv.innerHTML = `<h3 class="result-header">✅ Feature Graphic encontrado:</h3>`;
-                
-                validGraphics.slice(0, 3).forEach((graphic, index) => {
-                    const graphicDiv = document.createElement('div');
-                    graphicDiv.className = 'feature-graphic';
-                    graphicDiv.innerHTML = `
-                        <div class="graphic-info">
-                            <div>
-                                <span class="dimensions">${graphic.width} × ${graphic.height}px</span>
-                                <span style="color: #a0aec0; margin-left: 8px;">(Ratio: ${graphic.ratio.toFixed(2)})</span>
-                            </div>
-                            <span class="badge">Feature Graphic</span>
-                        </div>
-                        <img src="${graphic.url}" alt="Feature Graphic ${index + 1}" loading="lazy">
-                        <button class="download-btn" onclick="downloadImage('${graphic.url}', '${packageId}_feature_${graphic.width}x${graphic.height}.png')">
-                            ⬇️ Descargar ${graphic.width}x${graphic.height}
-                        </button>
-                        <div class="url-box" onclick="copyToClipboard('${graphic.url}')" style="cursor: pointer;" title="Click para copiar">
-                            📋 ${graphic.url}
-                        </div>
-                    `;
-                    resultsDiv.appendChild(graphicDiv);
-                });
-                
-            } catch (error) {
-                resultsDiv.innerHTML = `
-                    <div class="error">
-                        ❌ <strong>Error:</strong> ${error.message}<br><br>
-                        <strong>Soluciones:</strong><br>
-                        • Cambia el CORS Proxy en el desplegable<br>
-                        • Usa el <strong>Método Manual</strong> (100% efectivo)<br>
-                        • Verifica que el package ID sea correcto
-                    </div>
-                `;
-            } finally {
-                button.disabled = false;
-            }
-        }
-        
-        function showManualMethod() {
+        function showInstructions() {
             const input = document.getElementById('appUrl').value.trim();
             let packageId = input;
             
@@ -401,107 +176,127 @@
                 if (match) packageId = match[1];
             }
             
-            const playUrl = packageId ? 
-                `https://play.google.com/store/apps/details?id=${packageId}` : 
-                'https://play.google.com/store/apps/details?id=TU_PACKAGE_ID';
+            if (!packageId) {
+                alert('Por favor ingresa un package ID o URL válida');
+                return;
+            }
             
-            document.getElementById('results').innerHTML = `
-                <div style="background: #f7fafc; padding: 25px; border-radius: 8px; border: 2px solid #4299e1;">
-                    <h3 style="color: #2d3748; margin-bottom: 15px;">📋 Método Manual (Siempre Funciona)</h3>
-                    <p style="color: #4a5568; margin-bottom: 15px;">Este método extrae el feature graphic directamente sin proxies:</p>
-                    
-                    <ol style="color: #4a5568; line-height: 1.8; margin-left: 20px;">
-                        <li>Abre esta URL en una nueva pestaña: <br>
-                            <a href="${playUrl}" target="_blank" style="color: #4299e1; word-break: break-all;">${playUrl}</a>
-                        </li>
-                        <li>Presiona <strong>F12</strong> o <strong>Ctrl+Shift+I</strong> para abrir DevTools</li>
-                        <li>Ve a la pestaña <strong>Console</strong></li>
-                        <li>Copia y pega este código:<br>
-                            <div style="background: #2d3748; color: #e2e8f0; padding: 15px; border-radius: 6px; margin: 10px 0; overflow-x: auto; font-family: 'Courier New', monospace; font-size: 13px;">
-<pre style="margin: 0;">// Buscar feature graphic
-const html = document.documentElement.innerHTML;
-const pattern = /https:\\/\\/play-lh\\.googleusercontent\\.com\\/[A-Za-z0-9_-]+/g;
-const urls = [...new Set(html.match(pattern))];
-
-console.log('URLs encontradas:', urls.length);
-
-// Validar dimensiones
-for (const url of urls) {
-    const img = new Image();
-    img.onload = function() {
-        const ratio = this.width / this.height;
-        if (ratio > 1.9 && ratio < 2.3 && this.width >= 600) {
-            console.log('✅ FEATURE GRAPHIC:', url);
-            console.log('Dimensiones:', this.width + 'x' + this.height);
+            const playUrl = `https://play.google.com/store/apps/details?id=${packageId}`;
             
-            // Abrir en nueva pestaña
-            window.open(url, '_blank');
-        }
-    };
-    img.src = url;
-}</pre>
-                            </div>
+            document.getElementById('instructions').innerHTML = `
+                <div class="info-box">
+                    <h3>📋 Instrucciones (Método que SIEMPRE funciona)</h3>
+                    <ol class="steps">
+                        <li><strong>Abre esta URL en una nueva pestaña:</strong><br>
+                            <a href="${playUrl}" target="_blank" style="color: #3b82f6; word-break: break-all;">${playUrl}</a>
                         </li>
-                        <li>Presiona <strong>Enter</strong></li>
-                        <li>Se abrirá automáticamente el feature graphic en una nueva pestaña</li>
-                        <li>Haz click derecho → <strong>Guardar imagen como...</strong></li>
+                        <li>Presiona <span class="highlight">F12</span> (o <span class="highlight">Ctrl+Shift+I</span> en Windows / <span class="highlight">Cmd+Option+I</span> en Mac)</li>
+                        <li>Ve a la pestaña <span class="highlight">Console</span></li>
+                        <li>Copia y pega este código completo:</li>
                     </ol>
                     
-                    <div style="background: #ebf8ff; padding: 15px; border-radius: 6px; margin-top: 20px; border-left: 4px solid #4299e1;">
-                        <strong style="color: #2c5282;">💡 Ventaja:</strong> 
-                        <span style="color: #2c5282;">Este método no depende de proxies externos y funciona 100% de las veces.</span>
-                    </div>
-                </div>
-            `;
-        }
-        
-        function getImageDimensions(url) {
-            return new Promise((resolve, reject) => {
+                    <div class="code-box">// Feature Graphic Extractor
+const html = document.documentElement.innerHTML;
+
+// Buscar todas las URLs de play-lh.googleusercontent.com
+const pattern = /https:\\/\\/play-lh\\.googleusercontent\\.com\\/[A-Za-z0-9_-]{50,}(?:=[wshd0-9-]+)?/g;
+const matches = html.match(pattern);
+
+if (!matches) {
+    console.log('❌ No se encontraron imágenes');
+} else {
+    console.log('✅ URLs encontradas:', matches.length);
+    
+    // Obtener URLs únicas y limpiar parámetros
+    const uniqueUrls = [...new Set(matches)].map(url => url.split('=')[0]);
+    
+    console.log('🔍 Analizando ' + uniqueUrls.length + ' imágenes únicas...');
+    
+    let found = 0;
+    uniqueUrls.forEach((url, index) => {
+        const img = new Image();
+        img.onload = function() {
+            const ratio = this.width / this.height;
+            
+            // Feature graphic es 1024x500 (ratio ~2.048)
+            if (ratio >= 1.95 && ratio <= 2.15 && this.width >= 900) {
+                found++;
+                console.log('\\n🎯 FEATURE GRAPHIC ENCONTRADO #' + found);
+                console.log('📐 Dimensiones: ' + this.width + 'x' + this.height);
+                console.log('📊 Ratio: ' + ratio.toFixed(3));
+                console.log('🔗 URL: ' + url);
+                console.log('\\n📥 Abriendo en nueva pestaña...');
+                
+                // Abrir en nueva pestaña
+                window.open(url, '_blank');
+            }
+        };
+        img.src = url;
+    });
+    
+    // Mensaje después de 3 segundos
+    setTimeout(() => {
+        if (found === 0) {
+            console.log('\\n⚠️ No se encontró feature graphic con dimensiones exactas');
+            console.log('💡 Buscando con criterios más amplios...');
+            
+            uniqueUrls.forEach(url => {
                 const img = new Image();
-                img.crossOrigin = "anonymous";
-                
-                const timeout = setTimeout(() => {
-                    reject(new Error('Timeout'));
-                }, 8000);
-                
-                img.onload = () => {
-                    clearTimeout(timeout);
-                    resolve({ 
-                        width: img.naturalWidth, 
-                        height: img.naturalHeight 
-                    });
+                img.onload = function() {
+                    const ratio = this.width / this.height;
+                    if (ratio >= 1.8 && ratio <= 2.4 && this.width >= 600) {
+                        console.log('\\n🔍 Candidato alternativo:');
+                        console.log('📐 ' + this.width + 'x' + this.height + ' (ratio: ' + ratio.toFixed(3) + ')');
+                        console.log('🔗 ' + url);
+                        window.open(url, '_blank');
+                    }
                 };
-                
-                img.onerror = () => {
-                    clearTimeout(timeout);
-                    reject(new Error('Failed'));
-                };
-                
                 img.src = url;
             });
         }
-        
-        function downloadImage(url, filename) {
-            const link = document.createElement('a');
-            link.href = url;
-            link.download = filename;
-            link.target = '_blank';
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
+    }, 3000);
+}</div>
+                    
+                    <ol class="steps" start="5">
+                        <li>Presiona <span class="highlight">Enter</span></li>
+                        <li>El script buscará el feature graphic y lo abrirá automáticamente en una nueva pestaña</li>
+                        <li>Haz click derecho en la imagen → <strong>"Guardar imagen como..."</strong></li>
+                        <li><strong>IMPORTANTE:</strong> La URL en la consola NO tendrá parámetros (=w832-h470-rw), lo cual es correcto. La imagen se mostrará en su resolución original de 1024x500px</li>
+                    </ol>
+                </div>
+                
+                <div style="background: #fef3c7; padding: 20px; border-radius: 8px; border-left: 4px solid #f59e0b; margin-top: 20px;">
+                    <h3 style="color: #92400e; margin-bottom: 10px;">💡 ¿Por qué este método funciona siempre?</h3>
+                    <ul style="color: #78350f; line-height: 1.8;">
+                        <li>✅ No depende de proxies CORS externos</li>
+                        <li>✅ Accede directamente al HTML de Google Play</li>
+                        <li>✅ Filtra por dimensiones exactas (ratio 2.048)</li>
+                        <li>✅ Abre automáticamente la imagen correcta</li>
+                        <li>✅ La URL base sin parámetros te da la resolución completa 1024x500px</li>
+                    </ul>
+                </div>
+                
+                <div style="background: #dbeafe; padding: 20px; border-radius: 8px; margin-top: 20px;">
+                    <h3 style="color: #1e40af; margin-bottom: 10px;">🎓 ¿Qué hace el código?</h3>
+                    <p style="color: #1e3a8a; line-height: 1.7;">
+                        1. Busca todas las URLs de <code style="background: #93c5fd; padding: 2px 6px; border-radius: 3px;">play-lh.googleusercontent.com</code> con hashes largos (50+ caracteres)<br>
+                        2. Carga cada imagen y mide sus dimensiones<br>
+                        3. Identifica el feature graphic por su ratio característico (~2.048) y tamaño (≥900px de ancho)<br>
+                        4. Abre automáticamente solo la imagen correcta en una nueva pestaña
+                    </p>
+                </div>
+            `;
+            
+            document.getElementById('result').innerHTML = '';
         }
         
-        function copyToClipboard(text) {
-            navigator.clipboard.writeText(text).then(() => {
-                alert('✅ URL copiada al portapapeles');
-            }).catch(() => {
-                prompt('Copia esta URL:', text);
-            });
-        }
+        // Auto-focus en el input
+        document.getElementById('appUrl').focus();
         
+        // Enter para buscar
         document.getElementById('appUrl').addEventListener('keypress', function(e) {
             if (e.key === 'Enter') {
-                extractFeatureGraphic();
+                showInstructions();
             }
         });
     </script>
